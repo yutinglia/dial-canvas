@@ -398,6 +398,18 @@
   "optionsShortcuts": {
     "message": "快速鍵：Alt+E 切換編輯 · Alt+A 新增撥號 · Alt+F 搜尋"
   },
+  "language": {
+    "message": "語言"
+  },
+  "languageSystem": {
+    "message": "系統預設"
+  },
+  "languageEn": {
+    "message": "English"
+  },
+  "languageZhTw": {
+    "message": "繁體中文"
+  },
   "backgroundColor": {
     "message": "背景顏色"
   },

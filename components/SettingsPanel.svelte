@@ -330,6 +330,28 @@
       <h2 class="mb-4 text-lg font-medium">{t('settings')}</h2>
 
       <label class="mb-4 block text-sm">
+        <span class="mb-1 block text-[var(--text-muted)]">{t('language')}</span>
+        <select
+          class="w-full rounded-md border bg-transparent px-3 py-2 outline-none"
+          style:border-color="var(--dial-border)"
+          value={settings.locale}
+          onchange={(e) =>
+            onChange(
+              {
+                locale: (e.currentTarget as HTMLSelectElement)
+                  .value as Settings['locale'],
+              },
+              { immediate: true },
+            )
+          }
+        >
+          <option value="system">{t('languageSystem')}</option>
+          <option value="en">{t('languageEn')}</option>
+          <option value="zh_TW">{t('languageZhTw')}</option>
+        </select>
+      </label>
+
+      <label class="mb-4 block text-sm">
         <span class="mb-1 flex items-center justify-between text-[var(--text-muted)]">
           <span>{t('gridSize')}</span>
           <span>{settings.gridSize}px</span>

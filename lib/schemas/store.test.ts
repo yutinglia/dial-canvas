@@ -132,6 +132,7 @@ describe('DialSchema', () => {
 describe('SettingsSchema', () => {
   it('fills defaults for an empty object', () => {
     expect(SettingsSchema.parse({})).toEqual(DEFAULT_SETTINGS);
+    expect(DEFAULT_SETTINGS.locale).toBe('system');
     expect(DEFAULT_SETTINGS.gridSize).toBe(16);
     expect(DEFAULT_SETTINGS.snapEnabled).toBe(false);
     expect(DEFAULT_SETTINGS.iconSize).toBe(40);

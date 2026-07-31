@@ -398,6 +398,18 @@
   "optionsShortcuts": {
     "message": "Shortcuts: Alt+E toggle edit · Alt+A add dial · Alt+F search"
   },
+  "language": {
+    "message": "Language"
+  },
+  "languageSystem": {
+    "message": "System"
+  },
+  "languageEn": {
+    "message": "English"
+  },
+  "languageZhTw": {
+    "message": "繁體中文"
+  },
   "backgroundColor": {
     "message": "Background color"
   },

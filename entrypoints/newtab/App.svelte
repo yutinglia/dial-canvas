@@ -64,7 +64,7 @@
     hasFetchHostPermission,
     requestFetchHostPermission,
   } from '../../lib/dials/hostPermission';
-  import { t } from '../../lib/i18n';
+  import { setLocalePreference, t } from '../../lib/i18n';
 
   const EDIT_HINT_KEY = 'msd-edit-hint-seen';
 
@@ -293,6 +293,7 @@
   }
 
   async function applyRemoteStore(next: Store) {
+    setLocalePreference(next.settings.locale);
     store = next;
     applyBackground(next.settings);
     if (next.settings.background.type === 'bing') {
@@ -334,6 +335,7 @@
     void (async () => {
       try {
         const loaded = await getStore();
+        setLocalePreference(loaded.store.settings.locale);
         store = loaded.store;
         applyBackground(loaded.store.settings);
         if (loaded.store.settings.background.type === 'bing') {
@@ -454,6 +456,7 @@
   });
 
   async function persist(next: Store, immediate = true) {
+    setLocalePreference(next.settings.locale);
     store = next;
     applyBackground(next.settings);
     try {
@@ -1073,6 +1076,7 @@
 </script>
 
 {#if store}
+  {#key store.settings.locale}
   <div
     class="relative h-full w-full"
     style:background-color={canvasBackgroundColor()}
@@ -1210,6 +1214,7 @@
       </div>
     {/if}
   </div>
+  {/key}
 {:else}
   <div
     class="flex h-full items-center justify-center text-sm text-[var(--text-muted)]"

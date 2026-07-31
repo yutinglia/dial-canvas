@@ -74,7 +74,12 @@ export const BackgroundSchema = z.discriminatedUnion('type', [
 
 export type BackgroundFit = z.infer<typeof BackgroundFitSchema>;
 
+export const LocalePreferenceSchema = z
+  .enum(['system', 'en', 'zh_TW'])
+  .default('system');
+
 export const SettingsSchema = z.object({
+  locale: LocalePreferenceSchema,
   gridSize: z.number().int().min(4).max(64).default(16),
   snapEnabled: z.boolean().default(false),
   snapThreshold: z.number().finite().positive().default(8),

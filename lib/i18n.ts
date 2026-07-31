@@ -1,4 +1,31 @@
-/** Thin wrapper around browser.i18n with English fallbacks for tests / missing keys. */
+/** Thin i18n helper with optional in-app locale override over browser.i18n. */
+
+import enMessages from '../public/_locales/en/messages.json';
+import zhTwMessages from '../public/_locales/zh_TW/messages.json';
+
+export type LocalePreference = 'system' | 'en' | 'zh_TW';
+
+type ChromeMessages = Record<string, { message: string }>;
+
+function flattenMessages(messages: ChromeMessages): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(messages)) {
+    out[key] = value.message;
+  }
+  return out;
+}
+
+const CATALOGS: Record<'en' | 'zh_TW', Record<string, string>> = {
+  en: flattenMessages(enMessages as ChromeMessages),
+  zh_TW: flattenMessages(zhTwMessages as ChromeMessages),
+};
+
+/** Active override catalog; `null` means follow the browser UI locale. */
+let activeCatalog: Record<string, string> | null = null;
+
+export function setLocalePreference(preference: LocalePreference): void {
+  activeCatalog = preference === 'system' ? null : CATALOGS[preference];
+}
 
 const FALLBACKS: Record<string, string> = {
   extName: 'My Speed Dial',
@@ -131,6 +158,10 @@ const FALLBACKS: Record<string, string> = {
   optionsStepUseSettingsAfter: 'for grid, wallpaper, and JSON backup',
   optionsShortcuts:
     'Shortcuts: Alt+E toggle edit · Alt+A add dial · Alt+F search',
+  language: 'Language',
+  languageSystem: 'System',
+  languageEn: 'English',
+  languageZhTw: '繁體中文',
   backgroundColor: 'Background color',
   backgroundImage: 'Wallpaper image URL',
   backgroundFit: 'Wallpaper fit',
@@ -199,6 +230,9 @@ export function t(
   key: string,
   substitutions?: string | string[],
 ): string {
+  const fromCatalog = activeCatalog?.[key];
+  if (fromCatalog) return applySubstitutions(fromCatalog, substitutions);
+
   try {
     const getMessage = browser.i18n?.getMessage?.bind(browser.i18n) as
       | ((msg: string, substitutions?: string | string[]) => string)
