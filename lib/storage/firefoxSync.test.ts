@@ -182,4 +182,41 @@ describe('firefox sync LWW', () => {
     const chunk = area[syncChunkKey(0)] as string;
     expect(JSON.parse(chunk).settings.iconSize).toBe(48);
   });
+
+  it('setSyncEnabled restores remote after reinstall seed (no local sync clock)', async () => {
+    const remote = sampleStore({
+      settings: { ...DEFAULT_SETTINGS, gridSize: 28, iconSize: 52 },
+      pages: [
+        {
+          id: 'page-home',
+          name: 'Home',
+          dials: [{ ...validDial, title: 'FromSync' }],
+          widgets: [],
+        },
+      ],
+    });
+    const built = buildSyncItems(slimStoreForSync(remote), 100);
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    await browser.storage.sync.set(built.items);
+
+    // Simulate post-reinstall first open: seed local without advancing LWW clock.
+    const seed = sampleStore();
+    await setStore(seed, { skipSyncPush: true });
+    expect(await getLocalUpdatedAt()).toBe(0);
+
+    const result = await setSyncEnabled(true, seed);
+    expect(result.action).toBe('applied');
+    if (result.action !== 'applied') return;
+    expect(result.store.settings.gridSize).toBe(28);
+    expect(getActiveDials(result.store)[0]?.title).toBe('FromSync');
+    expect(await getLocalUpdatedAt()).toBe(100);
+
+    // Cloud payload must not be overwritten by the seed.
+    const area = await browser.storage.sync.get(null);
+    const meta = area[SYNC_META_KEY] as { updatedAt: number };
+    expect(meta.updatedAt).toBe(100);
+    const chunk = area[syncChunkKey(0)] as string;
+    expect(JSON.parse(chunk).settings.gridSize).toBe(28);
+  });
 });

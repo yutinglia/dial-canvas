@@ -291,7 +291,9 @@ export async function mergeFromSync(): Promise<MergeFromSyncResult> {
 }
 
 /**
- * Enable or disable sync. When enabling, merge remote if newer, else push local.
+ * Enable or disable sync. When enabling, prefer an existing Firefox Sync
+ * payload before pushing local (critical after reinstall when local is only a
+ * seed and has no sync clock yet).
  */
 export async function setSyncEnabled(
   enabled: boolean,
@@ -309,19 +311,19 @@ export async function setSyncEnabled(
     return { action: 'disabled' };
   }
 
-  // Ensure we have a local clock before comparing.
-  let localUpdatedAt = await getLocalUpdatedAt();
-  if (localUpdatedAt === 0) {
-    localUpdatedAt = Date.now();
-    await setLocalUpdatedAt(localUpdatedAt);
-  }
-
+  // Pull first. Do not invent a local clock before comparing — that made a
+  // fresh post-reinstall seed stamp "newer" than Sync and wipe the cloud copy.
   const merged = await mergeFromSync();
   if (merged.action === 'applied') return merged;
   if (merged.action === 'error') return merged;
 
-  // empty or kept-local → push current local layout.
-  const result = await pushStoreToSync(currentStore, localUpdatedAt);
+  // empty or kept-local → publish current local layout.
+  const localUpdatedAt = await getLocalUpdatedAt();
+  const pushAt = localUpdatedAt > 0 ? localUpdatedAt : Date.now();
+  if (localUpdatedAt === 0) {
+    await setLocalUpdatedAt(pushAt);
+  }
+  const result = await pushStoreToSync(currentStore, pushAt);
   if (!result.ok) {
     return { action: 'error', error: new Error(result.reason) };
   }

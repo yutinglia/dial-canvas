@@ -59,7 +59,10 @@ export async function getStore(): Promise<LoadStoreResult> {
     }
 
     const seeded = createEmptyStore(createSeedDials());
-    await setStore(seeded);
+    // Do not advance the LWW clock for an automatic seed — otherwise a
+    // post-reinstall first open looks "newer" than Firefox Sync and overwrites
+    // cloud data when the user re-enables sync.
+    await setStore(seeded, { skipSyncPush: true });
     return {
       store: seeded,
       droppedDialCount: 0,
