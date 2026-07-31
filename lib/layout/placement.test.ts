@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canvasOrigin,
   clampRect,
   defaultClockWidgetSize,
   defaultDialSize,
   defaultWeatherWidgetSize,
   findFirstFreeSlot,
   findNearestFreeSlot,
+  firstLatticeAtOrAbove,
+  latticeRange,
   resolveDrop,
 } from './placement';
 import type { Rect } from './types';
@@ -48,11 +51,24 @@ describe('clampRect', () => {
   });
 });
 
+describe('canvasOrigin / lattice helpers', () => {
+  it('returns the canvas mid point', () => {
+    expect(canvasOrigin(canvas)).toEqual({ x: 160, y: 120 });
+  });
+
+  it('lists lattice values through the mid', () => {
+    expect(firstLatticeAtOrAbove(0, 160, 16)).toBe(0);
+    expect(firstLatticeAtOrAbove(0, 120, 16)).toBe(8);
+    expect(latticeRange(0, 48, 160, 16)).toEqual([0, 16, 32, 48]);
+    expect(latticeRange(0, 40, 120, 16)).toEqual([8, 24, 40]);
+  });
+});
+
 describe('resolveDrop', () => {
   const previous = rect(16, 16, 64, 64);
   const settings = { gridSize: 16, snapEnabled: true };
 
-  it('snaps and clamps a free drop', () => {
+  it('snaps and clamps a free drop on the center-origin grid', () => {
     expect(
       resolveDrop(
         rect(18, 20, 70, 50),
@@ -61,7 +77,7 @@ describe('resolveDrop', () => {
         settings,
         canvas,
       ),
-    ).toEqual(rect(16, 16, 64, 48));
+    ).toEqual(rect(16, 24, 64, 48));
   });
 
   it('soft-snaps when a threshold is provided', () => {
@@ -73,7 +89,35 @@ describe('resolveDrop', () => {
         { gridSize: 16, snapEnabled: true, snapThreshold: 4 },
         canvas,
       ),
-    ).toEqual(rect(16, 16, 70, 48));
+    ).toEqual(rect(16, 24, 70, 48));
+  });
+
+  it('soft-snaps item center to page mid after grid snap', () => {
+    const size = 64;
+    const nearMid = rect(160 - size / 2 + 3, 120 - size / 2 - 2, size, size);
+    expect(
+      resolveDrop(
+        nearMid,
+        previous,
+        [],
+        { gridSize: 16, snapEnabled: true, snapThreshold: 8 },
+        canvas,
+      ),
+    ).toEqual(rect(160 - size / 2, 120 - size / 2, size, size));
+  });
+
+  it('soft-snaps item center to another item center', () => {
+    const other = rect(200, 40, 80, 40); // center (240, 60)
+    const near = rect(210, 160, 64, 64);
+    expect(
+      resolveDrop(
+        near,
+        previous,
+        [other],
+        { gridSize: 16, snapEnabled: true, snapThreshold: 8 },
+        canvas,
+      ),
+    ).toEqual(rect(208, 168, 64, 64));
   });
 
   it('reverts to previousValid on overlap after snap/clamp', () => {
@@ -99,7 +143,7 @@ describe('resolveDrop', () => {
         settings,
         canvas,
       ),
-    ).toEqual(rect(64, 0, 64, 64));
+    ).toEqual(rect(64, 8, 64, 64));
   });
 
   it('clamps out-of-bounds proposals before the overlap check', () => {
@@ -136,22 +180,25 @@ describe('default widget sizes', () => {
 });
 
 describe('findFirstFreeSlot', () => {
-  it('returns the top-left slot on an empty canvas', () => {
+  it('returns the first center-origin lattice slot on an empty canvas', () => {
+    // midY=120 → first Y lattice in range is 8
     expect(findFirstFreeSlot([], 16, canvas)).toEqual(
-      rect(0, 0, 112, 96),
+      rect(0, 8, 112, 96),
     );
   });
 
   it('skips occupied slots and finds the next free one', () => {
-    const occupied = [rect(0, 0, 112, 96)];
+    const occupied = [rect(0, 8, 112, 96)];
     expect(findFirstFreeSlot(occupied, 16, canvas)).toEqual(
-      rect(112, 0, 112, 96),
+      rect(112, 8, 112, 96),
     );
   });
 
-  it('falls back to top-left when the canvas is full', () => {
+  it('falls back to the first lattice slot when the canvas is full', () => {
     const size = { width: 64, height: 64 };
     const tiny = { width: 64, height: 64 };
+    // mid (32, 32); only lattice slot in range is (0, 0) for this tiny canvas? 
+    // firstLatticeAtOrAbove(0, 32, 16) = 0; maxX=maxY=0 → only (0,0)
     const occupied = [rect(0, 0, 64, 64)];
     expect(findFirstFreeSlot(occupied, 16, tiny, size)).toEqual(
       rect(0, 0, 64, 64),
@@ -162,32 +209,30 @@ describe('findFirstFreeSlot', () => {
 describe('findNearestFreeSlot', () => {
   const size = { width: 64, height: 64 };
 
-  it('returns the snapped preferred slot when free', () => {
+  it('returns the center-origin snapped preferred slot when free', () => {
     expect(
       findNearestFreeSlot({ x: 50, y: 34 }, [], 16, canvas, size),
-    ).toEqual(rect(48, 32, 64, 64));
+    ).toEqual(rect(48, 40, 64, 64));
   });
 
-  it('clamps preferred coordinates into the canvas', () => {
+  it('clamps preferred coordinates onto an in-bounds lattice cell', () => {
     expect(
       findNearestFreeSlot({ x: 400, y: 300 }, [], 16, canvas, size),
-    ).toEqual(rect(256, 176, 64, 64));
+    ).toEqual(rect(256, 168, 64, 64));
   });
 
   it('expands to a nearby free ring when preferred is occupied', () => {
-    const occupied = [rect(48, 32, 64, 64)];
-    // First free Chebyshev neighbor of (48,32) that clears the 64×64 blocker.
+    const occupied = [rect(48, 40, 64, 64)];
     expect(
-      findNearestFreeSlot({ x: 48, y: 32 }, occupied, 16, canvas, size),
-    ).toEqual(rect(112, 0, 64, 64));
+      findNearestFreeSlot({ x: 48, y: 40 }, occupied, 16, canvas, size),
+    ).toEqual(rect(112, 8, 64, 64));
   });
 
   it('picks an adjacent ring cell when only the preferred slot is blocked', () => {
-    const occupied = [rect(48, 32, 16, 16)];
-    // (32,16) still overlaps the blocker; next free ring cell is (64,16).
+    const occupied = [rect(48, 40, 16, 16)];
     expect(
-      findNearestFreeSlot({ x: 48, y: 32 }, occupied, 16, canvas, size),
-    ).toEqual(rect(64, 16, 64, 64));
+      findNearestFreeSlot({ x: 48, y: 40 }, occupied, 16, canvas, size),
+    ).toEqual(rect(64, 24, 64, 64));
   });
 
   it('falls back to findFirstFreeSlot when the canvas is full', () => {

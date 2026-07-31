@@ -1,3 +1,4 @@
+import { alignSnapRect } from './align';
 import { hasOverlap } from './collision';
 import { snapRect } from './snap';
 import type { Point, Rect, Size } from './types';
@@ -9,6 +10,57 @@ export type DropSettings = {
   snapThreshold?: number;
 };
 
+/** Canvas mid — origin for the center-anchored snap grid. */
+export function canvasOrigin(canvas: Size): Point {
+  return { x: canvas.width / 2, y: canvas.height / 2 };
+}
+
+/** First lattice value `origin + k*step` that is >= min. */
+export function firstLatticeAtOrAbove(
+  min: number,
+  origin: number,
+  step: number,
+): number {
+  return origin + Math.ceil((min - origin) / step) * step;
+}
+
+/** Lattice coordinates in [min, max] inclusive, centered on origin. */
+export function latticeRange(
+  min: number,
+  max: number,
+  origin: number,
+  step: number,
+): number[] {
+  const out: number[] = [];
+  if (step <= 0 || max < min) return out;
+  let v = firstLatticeAtOrAbove(min, origin, step);
+  for (; v <= max; v += step) out.push(v);
+  return out;
+}
+
+/** Closest lattice value in [min, max] to `value` (falls back to min if empty). */
+function nearestLatticeInRange(
+  value: number,
+  origin: number,
+  step: number,
+  min: number,
+  max: number,
+): number {
+  const values = latticeRange(min, max, origin, step);
+  if (values.length === 0) return min;
+  let best = values[0]!;
+  let bestDist = Math.abs(best - value);
+  for (let i = 1; i < values.length; i++) {
+    const v = values[i]!;
+    const dist = Math.abs(v - value);
+    if (dist < bestDist) {
+      best = v;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
 export function clampRect(rect: Rect, canvas: Size): Rect {
   const width = Math.min(Math.max(rect.width, 1), canvas.width);
   const height = Math.min(Math.max(rect.height, 1), canvas.height);
@@ -19,6 +71,7 @@ export function clampRect(rect: Rect, canvas: Size): Rect {
 
 /**
  * Commit a proposed rect: optional snap → clamp → no-overlap check.
+ * When snap is on: grid snap (center origin) → center align snap → clamp.
  * On overlap, revert to previousValid.
  */
 export function resolveDrop(
@@ -30,7 +83,20 @@ export function resolveDrop(
 ): Rect {
   let next = { ...proposed };
   if (settings.snapEnabled) {
-    next = snapRect(next, settings.gridSize, settings.snapThreshold);
+    next = snapRect(
+      next,
+      settings.gridSize,
+      settings.snapThreshold,
+      canvasOrigin(canvasSize),
+    );
+    const threshold = settings.snapThreshold;
+    if (threshold !== undefined && Number.isFinite(threshold)) {
+      next = alignSnapRect(
+        next,
+        { canvas: canvasSize, others },
+        threshold,
+      );
+    }
   }
   next = clampRect(next, canvasSize);
   if (hasOverlap(next, others)) {
@@ -127,7 +193,7 @@ export function defaultWallpaperInfoWidgetSize(gridSize: number): {
   };
 }
 
-/** Scan snapped slots from top-left for the first free placement. */
+/** Scan center-origin grid slots from top-left for the first free placement. */
 export function findFirstFreeSlot(
   others: Rect[],
   gridSize: number,
@@ -135,22 +201,30 @@ export function findFirstFreeSlot(
   size = defaultDialSize(gridSize),
 ): Rect {
   const step = Math.max(1, gridSize);
+  const origin = canvasOrigin(canvasSize);
   const maxX = Math.max(0, canvasSize.width - size.width);
   const maxY = Math.max(0, canvasSize.height - size.height);
+  const xs = latticeRange(0, maxX, origin.x, step);
+  const ys = latticeRange(0, maxY, origin.y, step);
 
-  for (let y = 0; y <= maxY; y += step) {
-    for (let x = 0; x <= maxX; x += step) {
+  for (const y of ys) {
+    for (const x of xs) {
       const candidate: Rect = { x, y, width: size.width, height: size.height };
       if (!hasOverlap(candidate, others)) return candidate;
     }
   }
 
-  // Fallback: top-left even if overlapping (caller may still place; rare on empty-ish canvas).
-  return { x: 0, y: 0, width: size.width, height: size.height };
+  // Fallback: first lattice slot (or top-left) even if overlapping.
+  return {
+    x: xs[0] ?? 0,
+    y: ys[0] ?? 0,
+    width: size.width,
+    height: size.height,
+  };
 }
 
 /**
- * Place near a preferred point: snap to grid, clamp, then expand in
+ * Place near a preferred point: snap to center-origin grid, clamp, then expand in
  * Chebyshev rings until a free slot is found (falls back to findFirstFreeSlot).
  */
 export function findNearestFreeSlot(
@@ -161,20 +235,33 @@ export function findNearestFreeSlot(
   size = defaultDialSize(gridSize),
 ): Rect {
   const step = Math.max(1, gridSize);
-  const start = clampRect(
-    {
-      x: Math.round(preferred.x / step) * step,
-      y: Math.round(preferred.y / step) * step,
-      width: size.width,
-      height: size.height,
-    },
-    canvasSize,
+  const origin = canvasOrigin(canvasSize);
+  const maxX = Math.max(0, canvasSize.width - size.width);
+  const maxY = Math.max(0, canvasSize.height - size.height);
+
+  const startX = nearestLatticeInRange(
+    preferred.x,
+    origin.x,
+    step,
+    0,
+    maxX,
   );
+  const startY = nearestLatticeInRange(
+    preferred.y,
+    origin.y,
+    step,
+    0,
+    maxY,
+  );
+  const start: Rect = {
+    x: startX,
+    y: startY,
+    width: size.width,
+    height: size.height,
+  };
 
   if (!hasOverlap(start, others)) return start;
 
-  const maxX = Math.max(0, canvasSize.width - size.width);
-  const maxY = Math.max(0, canvasSize.height - size.height);
   const maxRadius = Math.ceil(Math.max(maxX, maxY) / step) + 1;
 
   for (let r = 1; r <= maxRadius; r++) {

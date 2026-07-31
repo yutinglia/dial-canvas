@@ -10,6 +10,7 @@
     resolveFaviconChain,
   } from '../lib/dials/favicon';
   import { t } from '../lib/i18n';
+  import ItemCenterCross from './ItemCenterCross.svelte';
 
   type ResizeHandle =
     | 'n'
@@ -198,6 +199,8 @@
     }}
   >
     {@render dialBody()}
+
+    <ItemCenterCross />
 
     <button
       type="button"

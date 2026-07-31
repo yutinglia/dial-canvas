@@ -133,7 +133,8 @@ describe('SettingsSchema', () => {
   it('fills defaults for an empty object', () => {
     expect(SettingsSchema.parse({})).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.locale).toBe('system');
-    expect(DEFAULT_SETTINGS.gridSize).toBe(16);
+    expect(DEFAULT_SETTINGS.gridSize).toBe(20);
+    expect(DEFAULT_SETTINGS.snapThreshold).toBe(10);
     expect(DEFAULT_SETTINGS.snapEnabled).toBe(false);
     expect(DEFAULT_SETTINGS.iconSize).toBe(40);
     expect(DEFAULT_SETTINGS.fontSize).toBe(15);

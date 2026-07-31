@@ -16,7 +16,12 @@
   --danger: #c45c5c;
   --text-muted: #9aa0a6;
   --overlay: rgba(0, 0, 0, 0.55);
-  --grid-line: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(255, 255, 255, 0.14);
+  --grid-line-major: rgba(255, 255, 255, 0.22);
+  --grid-line-emphasized: rgba(255, 255, 255, 0.2);
+  --grid-line-major-emphasized: rgba(255, 255, 255, 0.32);
+  --align-guide: rgba(107, 143, 113, 0.35);
+  --align-guide-active: rgba(107, 143, 113, 0.85);
   font-family: 'Segoe UI', 'IBM Plex Sans', 'Source Sans 3', system-ui, sans-serif;
   color-scheme: dark;
 }

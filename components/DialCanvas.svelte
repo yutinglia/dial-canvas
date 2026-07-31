@@ -2,13 +2,18 @@
   import DialCell from './DialCell.svelte';
   import WidgetCell from './WidgetCell.svelte';
   import GridOverlay from './GridOverlay.svelte';
+  import AlignGuides from './AlignGuides.svelte';
   import type { Dial } from '../lib/schemas/dial';
   import type { Widget } from '../lib/schemas/widget';
   import type { Background, Settings } from '../lib/schemas/settings';
   import {
+    activeAlignGuides,
+    alignSnapRect,
+    canvasOrigin,
     clampRect,
     resolveDrop,
     snapRect,
+    type AlignGuides as AlignGuideLines,
     type Rect,
     type Size,
   } from '../lib/layout';
@@ -144,13 +149,38 @@
     return previewById[item.id] ?? itemRect(item);
   }
 
-  function liveCandidate(raw: Rect): Rect {
+  function liveCandidate(raw: Rect, others: Rect[]): Rect {
     let next = clampRect(raw, canvasSize);
     if (settings.snapEnabled) {
-      next = snapRect(next, settings.gridSize, settings.snapThreshold);
+      next = snapRect(
+        next,
+        settings.gridSize,
+        settings.snapThreshold,
+        canvasOrigin(canvasSize),
+      );
+      next = alignSnapRect(
+        next,
+        { canvas: canvasSize, others },
+        settings.snapThreshold,
+      );
+      next = clampRect(next, canvasSize);
     }
     return next;
   }
+
+  const snapGuidesVisible = $derived(editMode && settings.snapEnabled);
+  const interactionActive = $derived(Boolean(interaction?.moved));
+  const activeGuideLines = $derived.by((): AlignGuideLines | null => {
+    const active = interaction;
+    if (!active?.moved || !settings.snapEnabled) return null;
+    const preview = previewById[active.id];
+    if (!preview) return null;
+    return activeAlignGuides(
+      preview,
+      { canvas: canvasSize, others: allOtherRects(active.id) },
+      settings.snapThreshold,
+    );
+  });
 
   function applyResize(
     origin: Rect,
@@ -293,7 +323,7 @@
       proposed = applyResize(active.origin, active.handle, dx, dy);
     }
 
-    const candidate = liveCandidate(proposed);
+    const candidate = liveCandidate(proposed, allOtherRects(active.id));
     previewById = { ...previewById, [active.id]: candidate };
 
     if (active.itemKind === 'dial') {
@@ -377,7 +407,14 @@
 >
   <GridOverlay
     gridSize={settings.gridSize}
-    visible={editMode && settings.snapEnabled}
+    visible={snapGuidesVisible}
+    {canvasSize}
+    emphasized={interactionActive}
+  />
+  <AlignGuides
+    visible={snapGuidesVisible}
+    {canvasSize}
+    activeGuides={activeGuideLines}
   />
 
   {#if isEmpty}

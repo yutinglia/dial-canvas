@@ -27,6 +27,16 @@ describe('snapScalar', () => {
     expect(snapScalar(17, 0)).toBe(17);
     expect(snapScalar(17, -8)).toBe(17);
   });
+
+  it('snaps relative to a non-zero origin', () => {
+    // Lattice: …, 184, 200, 216, 232, …
+    const origin = 200;
+    expect(snapScalar(200, 16, undefined, origin)).toBe(200);
+    expect(snapScalar(209, 16, undefined, origin)).toBe(216);
+    expect(snapScalar(184, 16, undefined, origin)).toBe(184);
+    expect(snapScalar(195, 16, 4, origin)).toBe(195);
+    expect(snapScalar(197, 16, 4, origin)).toBe(200);
+  });
 });
 
 describe('snapRect', () => {
@@ -55,5 +65,15 @@ describe('snapRect', () => {
     expect(
       snapRect({ x: 14, y: 2, width: 66, height: 50 }, 16, 4),
     ).toEqual({ x: 16, y: 0, width: 64, height: 48 });
+  });
+
+  it('snaps position relative to a canvas mid origin', () => {
+    const origin = { x: 160, y: 120 };
+    expect(
+      snapRect({ x: 18, y: 20, width: 70, height: 50 }, 16, undefined, origin),
+    ).toEqual({ x: 16, y: 24, width: 64, height: 48 });
+    expect(
+      snapRect({ x: 158, y: 118, width: 64, height: 64 }, 16, 4, origin),
+    ).toEqual({ x: 160, y: 120, width: 64, height: 64 });
   });
 });

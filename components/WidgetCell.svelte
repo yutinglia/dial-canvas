@@ -10,6 +10,7 @@
   import CalendarWidgetView from './widgets/CalendarWidget.svelte';
   import HolidaysWidgetView from './widgets/HolidaysWidget.svelte';
   import WallpaperInfoWidgetView from './widgets/WallpaperInfoWidget.svelte';
+  import ItemCenterCross from './ItemCenterCross.svelte';
 
   type ResizeHandle =
     | 'n'
@@ -178,6 +179,8 @@
     }}
   >
     {@render widgetBody()}
+
+    <ItemCenterCross />
 
     <button
       type="button"

@@ -80,9 +80,9 @@ export const LocalePreferenceSchema = z
 
 export const SettingsSchema = z.object({
   locale: LocalePreferenceSchema,
-  gridSize: z.number().int().min(4).max(64).default(16),
+  gridSize: z.number().int().min(4).max(64).default(20),
   snapEnabled: z.boolean().default(false),
-  snapThreshold: z.number().finite().positive().default(8),
+  snapThreshold: z.number().finite().positive().default(10),
   canvasMinWidth: z.number().finite().positive().default(1200),
   canvasMinHeight: z.number().finite().positive().default(800),
   iconSize: z.number().int().min(16).max(64).default(40),

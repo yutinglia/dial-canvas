@@ -2,8 +2,8 @@ import { createId } from '../id';
 import { defaultDialSize } from '../layout/placement';
 import type { Dial } from '../schemas/dial';
 
-/** First-run sample dials on a 16px grid. */
-export function createSeedDials(gridSize = 16): Dial[] {
+/** First-run sample dials on the default grid. */
+export function createSeedDials(gridSize = 20): Dial[] {
   const { width: w, height: h } = defaultDialSize(gridSize);
   const gap = gridSize;
 
