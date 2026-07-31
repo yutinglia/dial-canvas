@@ -4,13 +4,10 @@ import {
   titleFromHostname,
 } from '../lib/dials/pageTitle';
 import {
-  BING_WALLPAPER_API_URL,
-  BING_WALLPAPER_LIST_URL,
-  parseBingWallpaperListResponse,
-  parseBingWallpaperResponse,
+  requestBingWallpaper,
+  requestBingWallpaperList,
   type BingWallpaperListResult,
   type BingWallpaperResult,
-  utcDateString,
 } from '../lib/dials/bingWallpaper';
 import { hasFetchHostPermission } from '../lib/dials/hostPermission';
 import { isAllowedFaviconUrl } from '../lib/schemas/dial';
@@ -224,55 +221,18 @@ async function fetchPageTitle(url: string): Promise<FetchPageTitleResponse> {
   }
 }
 
-async function fetchBingJson(
-  url: string,
-): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
+async function fetchBingWallpaper(): Promise<BingWallpaperResult> {
   if (!(await hasFetchHostPermission())) {
     return { ok: false, error: 'Host permission not granted.' };
   }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
-    });
-    if (!response.ok) {
-      return { ok: false, error: `HTTP ${response.status}` };
-    }
-
-    const data: unknown = await response.json();
-    return { ok: true, data };
-  } catch (err) {
-    if (!(await hasFetchHostPermission())) {
-      return { ok: false, error: 'Host permission not granted.' };
-    }
-    const message =
-      err instanceof Error && err.name === 'AbortError'
-        ? 'Request timed out.'
-        : err instanceof Error && err.message
-          ? `Failed to fetch Bing wallpaper (${err.message}).`
-          : 'Failed to fetch Bing wallpaper.';
-    return { ok: false, error: message };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function fetchBingWallpaper(): Promise<BingWallpaperResult> {
-  const result = await fetchBingJson(BING_WALLPAPER_API_URL);
-  if (!result.ok) return result;
-  return parseBingWallpaperResponse(result.data, utcDateString());
+  return requestBingWallpaper();
 }
 
 async function fetchBingWallpaperList(): Promise<BingWallpaperListResult> {
-  const result = await fetchBingJson(BING_WALLPAPER_LIST_URL);
-  if (!result.ok) return result;
-  return parseBingWallpaperListResponse(result.data, utcDateString());
+  if (!(await hasFetchHostPermission())) {
+    return { ok: false, error: 'Host permission not granted.' };
+  }
+  return requestBingWallpaperList();
 }
 
 async function broadcastCommand(command: string) {
@@ -288,6 +248,7 @@ async function broadcastCommand(command: string) {
 }
 
 export default defineBackground(() => {
+  console.info('[msd:bing] background listener ready');
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (isFetchPageTitleMessage(message)) {
       void fetchPageTitle(message.url).then((result) => {
@@ -298,6 +259,7 @@ export default defineBackground(() => {
     }
 
     if (isFetchBingWallpaperMessage(message)) {
+      console.info('[msd:bing] message fetch-bing-wallpaper');
       void fetchBingWallpaper().then((result) => {
         sendResponse(result);
       });
@@ -305,6 +267,7 @@ export default defineBackground(() => {
     }
 
     if (isFetchBingWallpaperListMessage(message)) {
+      console.info('[msd:bing] message fetch-bing-wallpaper-list');
       void fetchBingWallpaperList().then((result) => {
         sendResponse(result);
       });

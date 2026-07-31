@@ -37,9 +37,10 @@
     requestBookmarksPermission,
   } from '../../lib/dials/bookmarks';
   import {
+    requestBingWallpaper,
+    requestBingWallpaperList,
     type BingWallpaperItem,
     type BingWallpaperListResult,
-    type BingWallpaperResult,
     utcDateString,
   } from '../../lib/dials/bingWallpaper';
   import {
@@ -177,9 +178,9 @@
     if (bingFetchInFlight) return;
     bingFetchInFlight = true;
     try {
-      const result = (await browser.runtime.sendMessage({
-        type: 'fetch-bing-wallpaper',
-      })) as BingWallpaperResult | undefined;
+      // Fetch directly from the newtab page. runtime.sendMessage to background
+      // was returning undefined for Bing list/daily requests in Firefox.
+      const result = await requestBingWallpaper();
       if (!store || store.settings.background.type !== 'bing') return;
       if (!result?.ok) {
         showToast(
@@ -458,19 +459,22 @@
   }
 
   async function onLoadBingWallpaperList(): Promise<BingWallpaperListResult> {
+    console.info('[msd:bing] onLoadBingWallpaperList start');
     if (!(await ensureHostPermissionForBing())) {
+      console.warn('[msd:bing] onLoadBingWallpaperList permission denied');
       return { ok: false, error: 'Host permission not granted.' };
     }
     try {
-      const result = (await browser.runtime.sendMessage({
-        type: 'fetch-bing-wallpaper-list',
-      })) as BingWallpaperListResult | undefined;
-      if (!result) {
-        return { ok: false, error: 'No response.' };
-      }
+      const result = await requestBingWallpaperList();
+      console.info('[msd:bing] onLoadBingWallpaperList response', result);
       return result;
-    } catch {
-      return { ok: false, error: 'Failed to fetch Bing wallpaper list.' };
+    } catch (err) {
+      console.error('[msd:bing] onLoadBingWallpaperList error', err);
+      const detail =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Failed to fetch Bing wallpaper list.';
+      return { ok: false, error: detail };
     }
   }
 
