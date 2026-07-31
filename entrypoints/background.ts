@@ -248,7 +248,6 @@ async function broadcastCommand(command: string) {
 }
 
 export default defineBackground(() => {
-  console.info('[msd:bing] background listener ready');
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (isFetchPageTitleMessage(message)) {
       void fetchPageTitle(message.url).then((result) => {
@@ -259,7 +258,6 @@ export default defineBackground(() => {
     }
 
     if (isFetchBingWallpaperMessage(message)) {
-      console.info('[msd:bing] message fetch-bing-wallpaper');
       void fetchBingWallpaper().then((result) => {
         sendResponse(result);
       });
@@ -267,7 +265,6 @@ export default defineBackground(() => {
     }
 
     if (isFetchBingWallpaperListMessage(message)) {
-      console.info('[msd:bing] message fetch-bing-wallpaper-list');
       void fetchBingWallpaperList().then((result) => {
         sendResponse(result);
       });

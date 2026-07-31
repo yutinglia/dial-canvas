@@ -459,17 +459,12 @@
   }
 
   async function onLoadBingWallpaperList(): Promise<BingWallpaperListResult> {
-    console.info('[msd:bing] onLoadBingWallpaperList start');
     if (!(await ensureHostPermissionForBing())) {
-      console.warn('[msd:bing] onLoadBingWallpaperList permission denied');
       return { ok: false, error: 'Host permission not granted.' };
     }
     try {
-      const result = await requestBingWallpaperList();
-      console.info('[msd:bing] onLoadBingWallpaperList response', result);
-      return result;
+      return await requestBingWallpaperList();
     } catch (err) {
-      console.error('[msd:bing] onLoadBingWallpaperList error', err);
       const detail =
         err instanceof Error && err.message
           ? err.message

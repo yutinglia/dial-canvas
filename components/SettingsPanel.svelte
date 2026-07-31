@@ -107,19 +107,11 @@
     if (bingListInFlight || bingListLoaded) return;
     bingListInFlight = true;
     const loadId = ++bingListLoadId;
-    console.info('[msd:bing] loadBingList start', { loadId });
     bingListLoading = true;
     bingListError = '';
     try {
       const result = await onLoadBingList();
-      console.info('[msd:bing] loadBingList result', { loadId, result });
-      if (loadId !== bingListLoadId) {
-        console.info('[msd:bing] loadBingList stale, ignored', {
-          loadId,
-          current: bingListLoadId,
-        });
-        return;
-      }
+      if (loadId !== bingListLoadId) return;
       if (!result.ok) {
         bingImages = [];
         bingListError = result.error;
@@ -130,7 +122,6 @@
       bingListError = '';
       bingListLoaded = true;
     } catch (err) {
-      console.error('[msd:bing] loadBingList threw', { loadId, err });
       if (loadId !== bingListLoadId) return;
       bingImages = [];
       bingListError =
@@ -600,30 +591,21 @@
           {#if bingListLoading && bingImages.length === 0}
             <p class="text-[var(--text-muted)]">{t('backgroundBingLoading')}</p>
           {:else if bingListError && bingImages.length === 0}
-            <div class="flex flex-col gap-2">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="text-[var(--text-muted)]">
-                  {t('backgroundBingListFailed')}
-                </p>
-                <button
-                  type="button"
-                  class="rounded-md px-2 py-1 text-xs"
-                  style:border="1px solid var(--dial-border)"
-                  onclick={() => {
-                    resetBingListCache();
-                    void loadBingList();
-                  }}
-                >
-                  {t('backgroundBingRetry')}
-                </button>
-              </div>
-              {#if bingListError}
-                <p
-                  class="break-all font-mono text-[11px] text-[var(--text-muted)]"
-                >
-                  {bingListError}
-                </p>
-              {/if}
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-[var(--text-muted)]">
+                {t('backgroundBingListFailed')}
+              </p>
+              <button
+                type="button"
+                class="rounded-md px-2 py-1 text-xs"
+                style:border="1px solid var(--dial-border)"
+                onclick={() => {
+                  resetBingListCache();
+                  void loadBingList();
+                }}
+              >
+                {t('backgroundBingRetry')}
+              </button>
             </div>
           {:else if bingImages.length > 0}
             <div class="grid grid-cols-2 gap-2">

@@ -182,7 +182,6 @@ type BingJsonResult =
 export async function fetchBingArchiveJson(
   url: string,
 ): Promise<BingJsonResult> {
-  console.info('[msd:bing] fetchBingArchiveJson start', url);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BING_FETCH_TIMEOUT_MS);
 
@@ -193,24 +192,11 @@ export async function fetchBingArchiveJson(
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     });
-    console.info('[msd:bing] fetchBingArchiveJson response', {
-      url,
-      status: response.status,
-      ok: response.ok,
-      contentType: response.headers.get('content-type'),
-    });
     if (!response.ok) {
       return { ok: false, error: `HTTP ${response.status}` };
     }
 
     const data: unknown = await response.json();
-    const imageCount =
-      data &&
-      typeof data === 'object' &&
-      Array.isArray((data as { images?: unknown }).images)
-        ? (data as { images: unknown[] }).images.length
-        : -1;
-    console.info('[msd:bing] fetchBingArchiveJson parsed', { url, imageCount });
     return { ok: true, data };
   } catch (err) {
     const message =
@@ -219,7 +205,6 @@ export async function fetchBingArchiveJson(
         : err instanceof Error && err.message
           ? `Failed to fetch Bing wallpaper (${err.message}).`
           : 'Failed to fetch Bing wallpaper.';
-    console.error('[msd:bing] fetchBingArchiveJson error', message, err);
     return { ok: false, error: message };
   } finally {
     clearTimeout(timer);
@@ -228,23 +213,14 @@ export async function fetchBingArchiveJson(
 
 /** Fetch and parse today's Bing wallpaper. */
 export async function requestBingWallpaper(): Promise<BingWallpaperResult> {
-  console.info('[msd:bing] requestBingWallpaper');
   const result = await fetchBingArchiveJson(BING_WALLPAPER_API_URL);
   if (!result.ok) return result;
-  const parsed = parseBingWallpaperResponse(result.data, utcDateString());
-  console.info('[msd:bing] requestBingWallpaper result', parsed);
-  return parsed;
+  return parseBingWallpaperResponse(result.data, utcDateString());
 }
 
 /** Fetch and parse recent Bing wallpapers (~8 days). */
 export async function requestBingWallpaperList(): Promise<BingWallpaperListResult> {
-  console.info('[msd:bing] requestBingWallpaperList');
   const result = await fetchBingArchiveJson(BING_WALLPAPER_LIST_URL);
   if (!result.ok) return result;
-  const parsed = parseBingWallpaperListResponse(result.data, utcDateString());
-  console.info(
-    '[msd:bing] requestBingWallpaperList result',
-    parsed.ok ? { ok: true, count: parsed.images.length } : parsed,
-  );
-  return parsed;
+  return parseBingWallpaperListResponse(result.data, utcDateString());
 }
