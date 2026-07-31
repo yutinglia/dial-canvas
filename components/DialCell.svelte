@@ -212,7 +212,7 @@
       />
     {/if}
     <span
-      class="shrink-0 line-clamp-2 leading-snug text-[var(--dial-title)]"
+      class="shrink-0 line-clamp-2 select-none leading-snug text-[var(--dial-title)]"
       style:font-size="{fontSize}px"
     >
       {dial.title}
