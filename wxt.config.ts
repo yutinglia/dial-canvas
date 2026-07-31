@@ -38,7 +38,7 @@ export default defineConfig({
         suggested_key: {
           default: 'Alt+F',
         },
-        description: 'Search dials',
+        description: '__MSG_cmdSearchDials__',
       },
     },
     browser_specific_settings: {

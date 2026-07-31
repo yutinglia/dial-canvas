@@ -122,6 +122,15 @@ const FALLBACKS: Record<string, string> = {
   bookmarksImported: 'Imported $1 bookmark(s).',
   cmdToggleEdit: 'Toggle edit mode',
   cmdAddDial: 'Add a new dial',
+  cmdSearchDials: 'Search dials',
+  optionsIntro:
+    'Layout, dials, backup (import/export), wallpaper, and pages are edited on the new tab page. Use the always-visible Edit control, then Settings.',
+  optionsStepOpenTab: 'Open a new tab',
+  optionsStepClickEditBefore: 'Click',
+  optionsStepUseSettingsBefore: 'Use',
+  optionsStepUseSettingsAfter: 'for grid, wallpaper, and JSON backup',
+  optionsShortcuts:
+    'Shortcuts: Alt+E toggle edit · Alt+A add dial · Alt+F search',
   backgroundColor: 'Background color',
   backgroundImage: 'Wallpaper image URL',
   backgroundFit: 'Wallpaper fit',

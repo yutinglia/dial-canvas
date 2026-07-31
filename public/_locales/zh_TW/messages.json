@@ -1,0 +1,551 @@
+{
+  "extName": {
+    "message": "我的快速撥號"
+  },
+  "extDescription": {
+    "message": "可自由配置的新分頁快速撥號。"
+  },
+  "loading": {
+    "message": "載入中…"
+  },
+  "edit": {
+    "message": "編輯"
+  },
+  "done": {
+    "message": "完成"
+  },
+  "addDial": {
+    "message": "新增撥號"
+  },
+  "addWidget": {
+    "message": "新增小工具"
+  },
+  "settings": {
+    "message": "設定"
+  },
+  "editMode": {
+    "message": "編輯模式"
+  },
+  "editHint": {
+    "message": "將游標移到右上角，或點選「編輯」來排列撥號與小工具。"
+  },
+  "emptyCanvas": {
+    "message": "此頁面尚無內容。"
+  },
+  "emptyCanvasHint": {
+    "message": "點選「編輯」，再按「新增撥號」或「新增小工具」開始。"
+  },
+  "searchPlaceholder": {
+    "message": "搜尋撥號…"
+  },
+  "searchNoResults": {
+    "message": "沒有符合的撥號。"
+  },
+  "pageHome": {
+    "message": "首頁"
+  },
+  "addPage": {
+    "message": "新增頁面"
+  },
+  "renamePage": {
+    "message": "重新命名頁面"
+  },
+  "deletePage": {
+    "message": "刪除頁面"
+  },
+  "confirmDeletePage": {
+    "message": "刪除此頁面及其所有撥號與小工具？"
+  },
+  "confirmDeleteDial": {
+    "message": "刪除此撥號？"
+  },
+  "confirmDeleteWidget": {
+    "message": "刪除此小工具？"
+  },
+  "confirmReset": {
+    "message": "要將所有撥號、小工具與設定重設為預設值嗎？此操作無法復原。"
+  },
+  "exportJson": {
+    "message": "匯出 JSON"
+  },
+  "importJson": {
+    "message": "匯入 JSON"
+  },
+  "resetDefaults": {
+    "message": "重設為預設值"
+  },
+  "importSuccess": {
+    "message": "匯入完成。"
+  },
+  "importFailed": {
+    "message": "匯入失敗。請確認檔案為有效的快速撥號備份。"
+  },
+  "exportFailed": {
+    "message": "匯出失敗。"
+  },
+  "resetDone": {
+    "message": "已重設為預設值。"
+  },
+  "copyUrl": {
+    "message": "複製網址"
+  },
+  "openDial": {
+    "message": "開啟"
+  },
+  "deleteDial": {
+    "message": "刪除"
+  },
+  "deleteWidget": {
+    "message": "刪除"
+  },
+  "editDial": {
+    "message": "編輯撥號"
+  },
+  "editWidget": {
+    "message": "編輯小工具"
+  },
+  "editClockWidget": {
+    "message": "編輯時鐘"
+  },
+  "editWeatherWidget": {
+    "message": "編輯天氣"
+  },
+  "editNoteWidget": {
+    "message": "編輯便條"
+  },
+  "editTodoWidget": {
+    "message": "編輯清單"
+  },
+  "editCalendarWidget": {
+    "message": "編輯月曆"
+  },
+  "editHolidaysWidget": {
+    "message": "編輯假日"
+  },
+  "editWallpaperInfoWidget": {
+    "message": "編輯桌布資訊"
+  },
+  "pickWidget": {
+    "message": "選擇要放上畫布的小工具類型。"
+  },
+  "widgetClock": {
+    "message": "時鐘"
+  },
+  "widgetClockHint": {
+    "message": "即時數位時鐘，可選擇顯示日期。"
+  },
+  "widgetWeather": {
+    "message": "天氣"
+  },
+  "widgetWeatherHint": {
+    "message": "顯示城市或目前位置的天氣狀況。"
+  },
+  "widgetNote": {
+    "message": "便條"
+  },
+  "widgetNoteHint": {
+    "message": "畫布上的自由文字便條。"
+  },
+  "widgetTodo": {
+    "message": "待辦清單"
+  },
+  "widgetTodoHint": {
+    "message": "本機待辦清單，含核取方塊。"
+  },
+  "widgetCalendar": {
+    "message": "月曆"
+  },
+  "widgetCalendarHint": {
+    "message": "瀏覽各月份，並標示今天。"
+  },
+  "widgetHolidays": {
+    "message": "公眾假期"
+  },
+  "widgetHolidaysHint": {
+    "message": "顯示指定國家即將到來的假日。"
+  },
+  "widgetWallpaperInfo": {
+    "message": "桌布資訊"
+  },
+  "widgetWallpaperInfoHint": {
+    "message": "顯示目前桌布的標題與出處。"
+  },
+  "noteTitlePlaceholder": {
+    "message": "便條標題"
+  },
+  "noteTextPlaceholder": {
+    "message": "寫點什麼…"
+  },
+  "noteEditorHint": {
+    "message": "可直接在畫布上編輯便條文字。"
+  },
+  "todoTitlePlaceholder": {
+    "message": "清單標題"
+  },
+  "todoAddPlaceholder": {
+    "message": "新增項目…"
+  },
+  "todoAdd": {
+    "message": "新增"
+  },
+  "todoRemoveItem": {
+    "message": "移除項目"
+  },
+  "todoClearCompleted": {
+    "message": "清除已完成"
+  },
+  "todoEditorHint": {
+    "message": "可直接在畫布上管理清單項目。"
+  },
+  "calendarPrev": {
+    "message": "上個月"
+  },
+  "calendarNext": {
+    "message": "下個月"
+  },
+  "calendarToday": {
+    "message": "回到本月"
+  },
+  "calendarWeekStartsOn": {
+    "message": "一週起始日"
+  },
+  "calendarWeekStartsMonday": {
+    "message": "星期一"
+  },
+  "calendarWeekStartsSunday": {
+    "message": "星期日"
+  },
+  "holidaysCountry": {
+    "message": "國家／地區"
+  },
+  "holidaysCountrySearch": {
+    "message": "搜尋國家／地區…"
+  },
+  "holidaysNoCountry": {
+    "message": "尚未設定國家／地區。"
+  },
+  "holidaysSetCountry": {
+    "message": "設定國家／地區"
+  },
+  "holidaysLoading": {
+    "message": "正在載入假日…"
+  },
+  "holidaysLoadingCountries": {
+    "message": "正在載入國家／地區…"
+  },
+  "holidaysFailed": {
+    "message": "無法載入假日。"
+  },
+  "holidaysCountriesFailed": {
+    "message": "無法載入國家／地區。"
+  },
+  "holidaysEmpty": {
+    "message": "沒有即將到來的假日。"
+  },
+  "holidaysLimit": {
+    "message": "顯示筆數"
+  },
+  "wallpaperInfoShowCopyright": {
+    "message": "顯示版權／出處"
+  },
+  "wallpaperInfoWaiting": {
+    "message": "切換至 Bing 每日桌布即可查看標題與出處。"
+  },
+  "clockFormat": {
+    "message": "時間格式"
+  },
+  "clockFormat12": {
+    "message": "12 小時制"
+  },
+  "clockFormat24": {
+    "message": "24 小時制"
+  },
+  "clockShowSeconds": {
+    "message": "顯示秒數"
+  },
+  "clockShowDate": {
+    "message": "顯示日期"
+  },
+  "weatherUnits": {
+    "message": "單位"
+  },
+  "weatherUnitsMetric": {
+    "message": "攝氏／公里每小時"
+  },
+  "weatherUnitsImperial": {
+    "message": "華氏／英里每小時"
+  },
+  "weatherLocation": {
+    "message": "位置"
+  },
+  "weatherNoLocation": {
+    "message": "尚未設定位置。"
+  },
+  "weatherCityPlaceholder": {
+    "message": "搜尋城市…"
+  },
+  "weatherSearch": {
+    "message": "搜尋"
+  },
+  "weatherSearching": {
+    "message": "搜尋中…"
+  },
+  "weatherUseMyLocation": {
+    "message": "使用我的位置"
+  },
+  "weatherLocating": {
+    "message": "定位中…"
+  },
+  "weatherSetLocation": {
+    "message": "設定位置"
+  },
+  "weatherLoading": {
+    "message": "正在載入天氣…"
+  },
+  "weatherFailed": {
+    "message": "無法載入天氣。"
+  },
+  "weatherSearchFailed": {
+    "message": "城市搜尋失敗。"
+  },
+  "weatherNoResults": {
+    "message": "找不到符合的城市。"
+  },
+  "weatherGeoFailed": {
+    "message": "無法取得你的位置。"
+  },
+  "dialCopied": {
+    "message": "已複製網址。"
+  },
+  "copyFailed": {
+    "message": "無法複製網址。"
+  },
+  "saveFailed": {
+    "message": "儲存失敗。你最近的變更仍保留在此分頁。"
+  },
+  "syncFailed": {
+    "message": "無法從儲存空間同步。"
+  },
+  "loadFailed": {
+    "message": "無法載入快速撥號資料。"
+  },
+  "dialRemovedOne": {
+    "message": "已移除 1 個無效撥號。"
+  },
+  "dialRemovedMany": {
+    "message": "已移除 $1 個無效撥號。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "widgetRemovedOne": {
+    "message": "已移除 1 個無效小工具。"
+  },
+  "widgetRemovedMany": {
+    "message": "已移除 $1 個無效小工具。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "invalidDialUrl": {
+    "message": "撥號網址必須使用 http://、https:// 或 about:。"
+  },
+  "bookmarksImport": {
+    "message": "匯入書籤"
+  },
+  "bookmarksPermission": {
+    "message": "需要書籤權限才能匯入。"
+  },
+  "bookmarksNone": {
+    "message": "找不到書籤網址。"
+  },
+  "bookmarksImported": {
+    "message": "已匯入 $1 個書籤。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "cmdToggleEdit": {
+    "message": "切換編輯模式"
+  },
+  "cmdAddDial": {
+    "message": "新增撥號"
+  },
+  "cmdSearchDials": {
+    "message": "搜尋撥號"
+  },
+  "optionsIntro": {
+    "message": "版面、撥號、備份（匯入／匯出）、桌布與頁面都在新分頁中編輯。請使用常駐的「編輯」按鈕，再開啟「設定」。"
+  },
+  "optionsStepOpenTab": {
+    "message": "開啟新分頁"
+  },
+  "optionsStepClickEditBefore": {
+    "message": "點選"
+  },
+  "optionsStepUseSettingsBefore": {
+    "message": "使用"
+  },
+  "optionsStepUseSettingsAfter": {
+    "message": "調整格線、桌布與 JSON 備份"
+  },
+  "optionsShortcuts": {
+    "message": "快速鍵：Alt+E 切換編輯 · Alt+A 新增撥號 · Alt+F 搜尋"
+  },
+  "backgroundColor": {
+    "message": "背景顏色"
+  },
+  "backgroundImage": {
+    "message": "桌布圖片網址"
+  },
+  "backgroundFit": {
+    "message": "桌布縮放"
+  },
+  "backgroundOpacity": {
+    "message": "桌布不透明度"
+  },
+  "backgroundSource": {
+    "message": "背景"
+  },
+  "backgroundSourceColor": {
+    "message": "顏色"
+  },
+  "backgroundSourceUrl": {
+    "message": "網址"
+  },
+  "backgroundSourceUpload": {
+    "message": "上傳"
+  },
+  "backgroundSourceBing": {
+    "message": "Bing 每日"
+  },
+  "backgroundUpload": {
+    "message": "桌布圖片"
+  },
+  "backgroundChooseFile": {
+    "message": "選擇圖片…"
+  },
+  "backgroundBingHint": {
+    "message": "選擇近期的 Bing 首頁桌布。"
+  },
+  "backgroundBingRefresh": {
+    "message": "重新整理今日"
+  },
+  "backgroundBingLoading": {
+    "message": "正在載入近期桌布…"
+  },
+  "backgroundBingListFailed": {
+    "message": "無法載入近期 Bing 桌布。"
+  },
+  "backgroundBingRetry": {
+    "message": "重試"
+  },
+  "backgroundBingToday": {
+    "message": "今日"
+  },
+  "wallpaperUploading": {
+    "message": "上傳中…"
+  },
+  "wallpaperUploadActive": {
+    "message": "自訂圖片使用中。"
+  },
+  "wallpaperInvalidType": {
+    "message": "請選擇圖片檔案。"
+  },
+  "wallpaperReadFailed": {
+    "message": "無法讀取該圖片檔案。"
+  },
+  "wallpaperTooLarge": {
+    "message": "即使壓縮後，圖片仍然過大。"
+  },
+  "bingFetchFailed": {
+    "message": "無法取得 Bing 每日桌布。"
+  },
+  "bingHostPermission": {
+    "message": "需要權限才能取得 Bing 桌布。"
+  },
+  "fitCover": {
+    "message": "填滿"
+  },
+  "fitContain": {
+    "message": "完整顯示"
+  },
+  "fitTile": {
+    "message": "並排"
+  },
+  "canvasMinWidth": {
+    "message": "畫布最小寬度"
+  },
+  "canvasMinHeight": {
+    "message": "畫布最小高度"
+  },
+  "snapThreshold": {
+    "message": "吸附閾值"
+  },
+  "gridSize": {
+    "message": "格線大小"
+  },
+  "snapEnabled": {
+    "message": "吸附格線"
+  },
+  "iconSize": {
+    "message": "圖示大小"
+  },
+  "fontSize": {
+    "message": "字型大小"
+  },
+  "dialBackgroundColor": {
+    "message": "儲存格背景"
+  },
+  "dialBackgroundOpacity": {
+    "message": "儲存格透明度"
+  },
+  "useDefaultBackground": {
+    "message": "使用預設"
+  },
+  "useDefault": {
+    "message": "使用預設"
+  },
+  "close": {
+    "message": "關閉"
+  },
+  "cancel": {
+    "message": "取消"
+  },
+  "save": {
+    "message": "儲存"
+  },
+  "title": {
+    "message": "標題"
+  },
+  "url": {
+    "message": "網址"
+  },
+  "faviconUrl": {
+    "message": "網站圖示網址（選填）"
+  },
+  "fetchTitle": {
+    "message": "擷取標題"
+  },
+  "fetching": {
+    "message": "擷取中…"
+  },
+  "fetchTitlePermission": {
+    "message": "需要權限才能擷取頁面標題。"
+  },
+  "useGlobal": {
+    "message": "使用全域"
+  },
+  "dataBackup": {
+    "message": "備份"
+  },
+  "pages": {
+    "message": "頁面"
+  }
+}
