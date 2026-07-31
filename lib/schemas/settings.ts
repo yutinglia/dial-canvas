@@ -19,6 +19,8 @@ function isAllowedWallpaperValue(value: string): boolean {
   }
 }
 
+const BackgroundFitSchema = z.enum(['cover', 'contain', 'tile']).default('cover');
+
 export const BackgroundSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('color'),
@@ -29,9 +31,27 @@ export const BackgroundSchema = z.discriminatedUnion('type', [
     value: z.string().min(1).refine(isAllowedWallpaperValue, {
       message: 'Wallpaper must be http(s) or a data:image URL',
     }),
-    fit: z.enum(['cover', 'contain', 'tile']).default('cover'),
+    fit: BackgroundFitSchema,
+  }),
+  z.object({
+    type: z.literal('bing'),
+    fit: BackgroundFitSchema,
+    cachedUrl: z
+      .string()
+      .min(1)
+      .refine(isAllowedWallpaperValue, {
+        message: 'Cached Bing URL must be http(s) or a data:image URL',
+      })
+      .optional(),
+    /** UTC calendar day `YYYY-MM-DD` when `cachedUrl` was fetched. */
+    cachedDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
   }),
 ]);
+
+export type BackgroundFit = z.infer<typeof BackgroundFitSchema>;
 
 export const SettingsSchema = z.object({
   gridSize: z.number().int().min(4).max(64).default(16),

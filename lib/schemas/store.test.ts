@@ -149,6 +149,30 @@ describe('SettingsSchema', () => {
       fit: 'contain',
     });
   });
+
+  it('accepts bing wallpaper backgrounds', () => {
+    const parsed = SettingsSchema.parse({
+      background: {
+        type: 'bing',
+        fit: 'cover',
+        cachedUrl: 'https://www.bing.com/th?id=OHR.example',
+        cachedDate: '2026-08-01',
+      },
+    });
+    expect(parsed.background).toEqual({
+      type: 'bing',
+      fit: 'cover',
+      cachedUrl: 'https://www.bing.com/th?id=OHR.example',
+      cachedDate: '2026-08-01',
+    });
+  });
+
+  it('defaults bing fit and allows empty cache', () => {
+    const parsed = SettingsSchema.parse({
+      background: { type: 'bing' },
+    });
+    expect(parsed.background).toEqual({ type: 'bing', fit: 'cover' });
+  });
 });
 
 describe('parseStore', () => {

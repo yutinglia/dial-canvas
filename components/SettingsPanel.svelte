@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { Background, Settings } from '../lib/schemas/settings';
+  import { fileToWallpaperDataUrl } from '../lib/dials/wallpaperImage';
   import { t } from '../lib/i18n';
+
+  type WallpaperSource = 'color' | 'url' | 'upload' | 'bing';
 
   interface Props {
     open: boolean;
@@ -11,6 +14,8 @@
     onImportFile: (file: File) => void;
     onReset: () => void;
     onImportBookmarks: () => void;
+    onRefreshBing: () => void;
+    onToast: (message: string) => void;
   }
 
   let {
@@ -22,15 +27,37 @@
     onImportFile,
     onReset,
     onImportBookmarks,
+    onRefreshBing,
+    onToast,
   }: Props = $props();
 
   let fileInput: HTMLInputElement | undefined = $state();
+  let wallpaperInput: HTMLInputElement | undefined = $state();
   let wallpaperUrl = $state('');
+  let source = $state<WallpaperSource>('color');
+  let uploading = $state(false);
+
+  function currentFit(): 'cover' | 'contain' | 'tile' {
+    const bg = settings.background;
+    if (bg.type === 'image' || bg.type === 'bing') return bg.fit;
+    return 'cover';
+  }
+
+  function deriveSource(bg: Background): WallpaperSource {
+    if (bg.type === 'color') return 'color';
+    if (bg.type === 'bing') return 'bing';
+    if (bg.value.startsWith('data:')) return 'upload';
+    return 'url';
+  }
 
   $effect(() => {
     if (open) {
+      source = deriveSource(settings.background);
       wallpaperUrl =
-        settings.background.type === 'image' ? settings.background.value : '';
+        settings.background.type === 'image' &&
+        !settings.background.value.startsWith('data:')
+          ? settings.background.value
+          : '';
     }
   });
 
@@ -42,7 +69,7 @@
     onChange({ background: { type: 'color', value } });
   }
 
-  function applyWallpaper() {
+  function applyWallpaperUrl() {
     const value = wallpaperUrl.trim();
     if (!value) {
       setColorBackground(
@@ -50,18 +77,106 @@
           ? settings.background.value
           : '#1a1d23',
       );
+      source = 'color';
       return;
     }
-    const fit =
-      settings.background.type === 'image' ? settings.background.fit : 'cover';
-    onChange({ background: { type: 'image', value, fit } });
+    onChange({
+      background: { type: 'image', value, fit: currentFit() },
+    });
   }
 
   function setFit(fit: 'cover' | 'contain' | 'tile') {
-    if (settings.background.type !== 'image') return;
-    onChange({
-      background: { ...settings.background, fit } satisfies Background,
-    });
+    const bg = settings.background;
+    if (bg.type === 'image') {
+      onChange({
+        background: { ...bg, fit } satisfies Background,
+      });
+      return;
+    }
+    if (bg.type === 'bing') {
+      onChange({
+        background: { ...bg, fit } satisfies Background,
+      });
+    }
+  }
+
+  function selectSource(next: WallpaperSource) {
+    source = next;
+    if (next === 'color') {
+      setColorBackground(
+        settings.background.type === 'color'
+          ? settings.background.value
+          : '#1a1d23',
+      );
+      return;
+    }
+    if (next === 'url') {
+      const existing =
+        settings.background.type === 'image' &&
+        !settings.background.value.startsWith('data:')
+          ? settings.background.value
+          : '';
+      wallpaperUrl = existing;
+      if (existing) {
+        onChange({
+          background: {
+            type: 'image',
+            value: existing,
+            fit: currentFit(),
+          },
+        });
+      }
+      return;
+    }
+    if (next === 'upload') {
+      // Keep current uploaded image if present; otherwise wait for a file.
+      if (
+        settings.background.type === 'image' &&
+        settings.background.value.startsWith('data:')
+      ) {
+        return;
+      }
+      return;
+    }
+    if (next === 'bing') {
+      const existing =
+        settings.background.type === 'bing' ? settings.background : null;
+      onChange({
+        background: {
+          type: 'bing',
+          fit: currentFit(),
+          ...(existing?.cachedUrl
+            ? {
+                cachedUrl: existing.cachedUrl,
+                cachedDate: existing.cachedDate,
+              }
+            : {}),
+        },
+      });
+    }
+  }
+
+  async function onWallpaperFile(file: File) {
+    uploading = true;
+    try {
+      const result = await fileToWallpaperDataUrl(file);
+      if (!result.ok) {
+        if (result.error === 'type') onToast(t('wallpaperInvalidType'));
+        else if (result.error === 'read') onToast(t('wallpaperReadFailed'));
+        else onToast(t('wallpaperTooLarge'));
+        return;
+      }
+      source = 'upload';
+      onChange({
+        background: {
+          type: 'image',
+          value: result.dataUrl,
+          fit: currentFit(),
+        },
+      });
+    } finally {
+      uploading = false;
+    }
   }
 </script>
 
@@ -229,51 +344,128 @@
         />
       </label>
 
-      <label class="mb-4 block text-sm">
-        <span class="mb-1 block text-[var(--text-muted)]">{t('backgroundColor')}</span>
-        <div class="flex items-center gap-3">
+      <fieldset class="mb-4">
+        <legend class="mb-2 text-sm text-[var(--text-muted)]">
+          {t('backgroundSource')}
+        </legend>
+        <div class="flex flex-wrap gap-2 text-sm">
+          {#each [
+            ['color', t('backgroundSourceColor')],
+            ['url', t('backgroundSourceUrl')],
+            ['upload', t('backgroundSourceUpload')],
+            ['bing', t('backgroundSourceBing')],
+          ] as [value, label]}
+            <button
+              type="button"
+              class="rounded-md px-3 py-1.5"
+              style:border="1px solid var(--dial-border)"
+              style:background={source === value
+                ? 'rgba(107, 143, 113, 0.25)'
+                : 'transparent'}
+              onclick={() => selectSource(value as WallpaperSource)}
+            >
+              {label}
+            </button>
+          {/each}
+        </div>
+      </fieldset>
+
+      {#if source === 'color'}
+        <label class="mb-4 block text-sm">
+          <span class="mb-1 block text-[var(--text-muted)]"
+            >{t('backgroundColor')}</span
+          >
+          <div class="flex items-center gap-3">
+            <input
+              type="color"
+              value={settings.background.type === 'color'
+                ? settings.background.value
+                : '#1a1d23'}
+              oninput={(e) => {
+                const value = (e.currentTarget as HTMLInputElement).value;
+                setColorBackground(value);
+              }}
+            />
+            <input
+              class="flex-1 rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
+              style:border-color="var(--dial-border)"
+              value={settings.background.type === 'color'
+                ? settings.background.value
+                : '#1a1d23'}
+              onchange={(e) => {
+                const value = (e.currentTarget as HTMLInputElement).value.trim();
+                if (value) setColorBackground(value);
+              }}
+            />
+          </div>
+        </label>
+      {:else if source === 'url'}
+        <label class="mb-2 block text-sm">
+          <span class="mb-1 block text-[var(--text-muted)]"
+            >{t('backgroundImage')}</span
+          >
           <input
-            type="color"
-            value={settings.background.type === 'color'
-              ? settings.background.value
-              : '#1a1d23'}
-            oninput={(e) => {
-              const value = (e.currentTarget as HTMLInputElement).value;
-              setColorBackground(value);
-            }}
-          />
-          <input
-            class="flex-1 rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
+            class="w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
             style:border-color="var(--dial-border)"
-            value={settings.background.type === 'color'
-              ? settings.background.value
-              : '#1a1d23'}
+            bind:value={wallpaperUrl}
+            placeholder="https://…"
+            onchange={applyWallpaperUrl}
+          />
+        </label>
+      {:else if source === 'upload'}
+        <div class="mb-2 text-sm">
+          <span class="mb-1 block text-[var(--text-muted)]"
+            >{t('backgroundUpload')}</span
+          >
+          <button
+            type="button"
+            class="rounded-md px-3 py-1.5"
+            style:border="1px solid var(--dial-border)"
+            disabled={uploading}
+            onclick={() => wallpaperInput?.click()}
+          >
+            {uploading ? t('wallpaperUploading') : t('backgroundChooseFile')}
+          </button>
+          {#if settings.background.type === 'image' && settings.background.value.startsWith('data:')}
+            <p class="mt-2 text-xs text-[var(--text-muted)]">
+              {t('wallpaperUploadActive')}
+            </p>
+          {/if}
+          <input
+            bind:this={wallpaperInput}
+            type="file"
+            accept="image/*"
+            class="hidden"
             onchange={(e) => {
-              const value = (e.currentTarget as HTMLInputElement).value.trim();
-              if (value) setColorBackground(value);
+              const file = (e.currentTarget as HTMLInputElement).files?.[0];
+              if (file) void onWallpaperFile(file);
+              (e.currentTarget as HTMLInputElement).value = '';
             }}
           />
         </div>
-      </label>
+      {:else}
+        <div class="mb-2 text-sm">
+          <p class="mb-2 text-[var(--text-muted)]">{t('backgroundBingHint')}</p>
+          <button
+            type="button"
+            class="rounded-md px-3 py-1.5"
+            style:border="1px solid var(--dial-border)"
+            onclick={onRefreshBing}
+          >
+            {t('backgroundBingRefresh')}
+          </button>
+        </div>
+      {/if}
 
-      <label class="mb-2 block text-sm">
-        <span class="mb-1 block text-[var(--text-muted)]">{t('backgroundImage')}</span>
-        <input
-          class="w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
-          style:border-color="var(--dial-border)"
-          bind:value={wallpaperUrl}
-          placeholder="https://… or data:image/…"
-          onchange={applyWallpaper}
-        />
-      </label>
-
-      {#if settings.background.type === 'image'}
+      {#if source === 'url' || source === 'upload' || source === 'bing'}
         <label class="mb-5 block text-sm">
-          <span class="mb-1 block text-[var(--text-muted)]">{t('backgroundFit')}</span>
+          <span class="mb-1 block text-[var(--text-muted)]"
+            >{t('backgroundFit')}</span
+          >
           <select
             class="w-full rounded-md border bg-transparent px-3 py-2 outline-none"
             style:border-color="var(--dial-border)"
-            value={settings.background.fit}
+            value={currentFit()}
             onchange={(e) =>
               setFit(
                 (e.currentTarget as HTMLSelectElement).value as

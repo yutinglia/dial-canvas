@@ -153,6 +153,51 @@
   "backgroundFit": {
     "message": "Wallpaper fit"
   },
+  "backgroundSource": {
+    "message": "Background"
+  },
+  "backgroundSourceColor": {
+    "message": "Color"
+  },
+  "backgroundSourceUrl": {
+    "message": "URL"
+  },
+  "backgroundSourceUpload": {
+    "message": "Upload"
+  },
+  "backgroundSourceBing": {
+    "message": "Bing daily"
+  },
+  "backgroundUpload": {
+    "message": "Wallpaper image"
+  },
+  "backgroundChooseFile": {
+    "message": "Choose image…"
+  },
+  "backgroundBingHint": {
+    "message": "Uses Bing’s daily homepage wallpaper."
+  },
+  "backgroundBingRefresh": {
+    "message": "Refresh today"
+  },
+  "wallpaperUploading": {
+    "message": "Uploading…"
+  },
+  "wallpaperUploadActive": {
+    "message": "Custom image is active."
+  },
+  "wallpaperInvalidType": {
+    "message": "Please choose an image file."
+  },
+  "wallpaperReadFailed": {
+    "message": "Could not read that image file."
+  },
+  "wallpaperTooLarge": {
+    "message": "Image is too large even after compression."
+  },
+  "bingFetchFailed": {
+    "message": "Could not fetch Bing daily wallpaper."
+  },
   "fitCover": {
     "message": "Cover"
   },

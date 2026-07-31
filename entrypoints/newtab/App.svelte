@@ -15,7 +15,7 @@
     normalizeFaviconUrl,
     type Dial,
   } from '../../lib/schemas/dial';
-  import type { Settings } from '../../lib/schemas/settings';
+  import type { Background, Settings } from '../../lib/schemas/settings';
   import {
     createEmptyStore,
     createPage,
@@ -36,6 +36,10 @@
     listBookmarkCandidates,
     requestBookmarksPermission,
   } from '../../lib/dials/bookmarks';
+  import {
+    type BingWallpaperResult,
+    utcDateString,
+  } from '../../lib/dials/bingWallpaper';
   import { t } from '../../lib/i18n';
 
   const EDIT_HINT_KEY = 'msd-edit-hint-seen';
@@ -56,6 +60,7 @@
     x: number;
     y: number;
   } | null>(null);
+  let bingFetchInFlight = false;
 
   const activeDials = $derived(store ? getActiveDials(store) : []);
 
@@ -78,6 +83,37 @@
     return JSON.stringify(a) === JSON.stringify(b);
   }
 
+  function isBingCacheFresh(
+    bg: Extract<Background, { type: 'bing' }>,
+  ): boolean {
+    return Boolean(bg.cachedUrl && bg.cachedDate === utcDateString());
+  }
+
+  function applyImageBackground(imageUrl: string | undefined, fit: string) {
+    const root = document.documentElement;
+    root.style.setProperty('--canvas-bg', '#1a1d23');
+    if (!imageUrl) {
+      root.style.setProperty('--canvas-bg-image', 'none');
+      root.style.setProperty('--canvas-bg-size', 'auto');
+      root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
+      return;
+    }
+    root.style.setProperty(
+      '--canvas-bg-image',
+      `url("${imageUrl.replace(/"/g, '\\"')}")`,
+    );
+    if (fit === 'tile') {
+      root.style.setProperty('--canvas-bg-size', 'auto');
+      root.style.setProperty('--canvas-bg-repeat', 'repeat');
+    } else if (fit === 'contain') {
+      root.style.setProperty('--canvas-bg-size', 'contain');
+      root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
+    } else {
+      root.style.setProperty('--canvas-bg-size', 'cover');
+      root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
+    }
+  }
+
   function applyBackground(settings: Settings) {
     const root = document.documentElement;
     const bg = settings.background;
@@ -86,25 +122,72 @@
       root.style.setProperty('--canvas-bg-image', 'none');
       root.style.setProperty('--canvas-bg-size', 'auto');
       root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
-    } else {
-      root.style.setProperty('--canvas-bg', '#1a1d23');
-      root.style.setProperty('--canvas-bg-image', `url("${bg.value.replace(/"/g, '\\"')}")`);
-      if (bg.fit === 'tile') {
-        root.style.setProperty('--canvas-bg-size', 'auto');
-        root.style.setProperty('--canvas-bg-repeat', 'repeat');
-      } else if (bg.fit === 'contain') {
-        root.style.setProperty('--canvas-bg-size', 'contain');
-        root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
-      } else {
-        root.style.setProperty('--canvas-bg-size', 'cover');
-        root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
+      return;
+    }
+    if (bg.type === 'bing') {
+      applyImageBackground(bg.cachedUrl, bg.fit);
+      return;
+    }
+    applyImageBackground(bg.value, bg.fit);
+  }
+
+  async function ensureBingWallpaper(force = false) {
+    if (!store || store.settings.background.type !== 'bing') return;
+    const bg = store.settings.background;
+    if (!force && isBingCacheFresh(bg)) {
+      applyBackground(store.settings);
+      return;
+    }
+    if (bingFetchInFlight) return;
+    bingFetchInFlight = true;
+    try {
+      const result = (await browser.runtime.sendMessage({
+        type: 'fetch-bing-wallpaper',
+      })) as BingWallpaperResult | undefined;
+      if (!store || store.settings.background.type !== 'bing') return;
+      if (!result?.ok) {
+        showToast(t('bingFetchFailed'));
+        applyBackground(store.settings);
+        return;
       }
+      const current = store.settings.background;
+      if (
+        !force &&
+        current.cachedUrl === result.url &&
+        current.cachedDate === result.date
+      ) {
+        applyBackground(store.settings);
+        return;
+      }
+      await persist(
+        {
+          ...store,
+          settings: {
+            ...store.settings,
+            background: {
+              type: 'bing',
+              fit: current.fit,
+              cachedUrl: result.url,
+              cachedDate: result.date,
+            },
+          },
+        },
+        false,
+      );
+    } catch {
+      showToast(t('bingFetchFailed'));
+      if (store) applyBackground(store.settings);
+    } finally {
+      bingFetchInFlight = false;
     }
   }
 
   async function applyRemoteStore(next: Store) {
     store = next;
     applyBackground(next.settings);
+    if (next.settings.background.type === 'bing') {
+      void ensureBingWallpaper(false);
+    }
   }
 
   async function reconcileFromStorage() {
@@ -149,6 +232,9 @@
         const loaded = await getStore();
         store = loaded.store;
         applyBackground(loaded.store.settings);
+        if (loaded.store.settings.background.type === 'bing') {
+          void ensureBingWallpaper(false);
+        }
         if (loaded.droppedDialCount > 0) {
           showToast(
             loaded.droppedDialCount === 1
@@ -260,13 +346,20 @@
 
   function onSettingsChange(partial: Partial<Settings>) {
     if (!store) return;
-    void persist(
-      {
-        ...store,
-        settings: { ...store.settings, ...partial },
-      },
-      false,
-    );
+    const next: Store = {
+      ...store,
+      settings: { ...store.settings, ...partial },
+    };
+    void (async () => {
+      await persist(next, false);
+      if (next.settings.background.type === 'bing') {
+        void ensureBingWallpaper(false);
+      }
+    })();
+  }
+
+  function onRefreshBingWallpaper() {
+    void ensureBingWallpaper(true);
   }
 
   function toggleEdit() {
@@ -601,6 +694,8 @@
       onImportFile={importStoreFile}
       onReset={resetStore}
       onImportBookmarks={importBookmarks}
+      onRefreshBing={onRefreshBingWallpaper}
+      onToast={showToast}
     />
 
     <DialContextMenu
