@@ -274,6 +274,8 @@
       selected={selectedId === dial.id}
       preview={Boolean(previewById[dial.id])}
       dragging={interaction?.kind === 'move' && interaction.id === dial.id}
+      iconSize={settings.iconSize}
+      fontSize={settings.fontSize}
       {onNavigate}
       onEdit={onEditDial}
       {onMoveStart}

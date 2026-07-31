@@ -18,6 +18,8 @@
     selected?: boolean;
     preview?: boolean;
     dragging?: boolean;
+    iconSize?: number;
+    fontSize?: number;
     onNavigate: (dial: Dial) => void;
     onEdit: (dial: Dial) => void;
     onMoveStart: (dial: Dial, event: PointerEvent) => void;
@@ -34,11 +36,15 @@
     selected = false,
     preview = false,
     dragging = false,
+    iconSize = 40,
+    fontSize = 15,
     onNavigate,
     onEdit,
     onMoveStart,
     onResizeStart,
   }: Props = $props();
+
+  const hoverLift = $derived(!preview && !dragging);
 
   const favicon = $derived(resolveFaviconUrl(dial.url, dial.faviconUrl));
 
@@ -74,14 +80,15 @@
 </script>
 
 <div
-  class="group absolute z-10 flex flex-col overflow-hidden rounded-lg border transition-[box-shadow,opacity,background]"
+  class="group absolute z-10 flex flex-col overflow-hidden rounded-lg border border-[var(--dial-border)] bg-[var(--dial-bg)] transition-[box-shadow,opacity,background,transform,border-color] hover:bg-[var(--dial-bg-hover)] hover:border-[rgba(255,255,255,0.18)]"
   class:ring-2={selected && editMode}
+  class:hover:scale-[1.02]={hoverLift}
   style:left="{dial.x}px"
   style:top="{dial.y}px"
   style:width="{dial.width}px"
   style:height="{dial.height}px"
-  style:background={preview ? 'rgba(107, 143, 113, 0.18)' : 'var(--dial-bg)'}
-  style:border-color={preview ? 'var(--accent)' : 'var(--dial-border)'}
+  style:background={preview ? 'rgba(107, 143, 113, 0.18)' : undefined}
+  style:border-color={preview ? 'var(--accent)' : undefined}
   style:opacity={preview ? 0.85 : 1}
   style:box-shadow={selected && editMode
     ? '0 0 0 1px var(--accent)'
@@ -121,7 +128,9 @@
       <img
         src={favicon}
         alt=""
-        class="h-8 max-h-[40%] min-h-0 w-8 shrink rounded-sm object-contain"
+        class="max-h-[40%] min-h-0 shrink rounded-sm object-contain"
+        style:width="{iconSize}px"
+        style:height="{iconSize}px"
         loading="lazy"
         onerror={(e) => {
           (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
@@ -129,7 +138,8 @@
       />
     {/if}
     <span
-      class="shrink-0 line-clamp-2 text-sm leading-snug text-[var(--dial-title)]"
+      class="shrink-0 line-clamp-2 leading-snug text-[var(--dial-title)]"
+      style:font-size="{fontSize}px"
     >
       {dial.title}
     </span>

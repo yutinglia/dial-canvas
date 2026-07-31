@@ -38,11 +38,20 @@ describe('SettingsSchema', () => {
     expect(SettingsSchema.parse({})).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.gridSize).toBe(16);
     expect(DEFAULT_SETTINGS.snapEnabled).toBe(false);
+    expect(DEFAULT_SETTINGS.iconSize).toBe(40);
+    expect(DEFAULT_SETTINGS.fontSize).toBe(15);
   });
 
   it('rejects out-of-range gridSize', () => {
     expect(SettingsSchema.safeParse({ gridSize: 2 }).success).toBe(false);
     expect(SettingsSchema.safeParse({ gridSize: 128 }).success).toBe(false);
+  });
+
+  it('rejects out-of-range iconSize and fontSize', () => {
+    expect(SettingsSchema.safeParse({ iconSize: 8 }).success).toBe(false);
+    expect(SettingsSchema.safeParse({ iconSize: 128 }).success).toBe(false);
+    expect(SettingsSchema.safeParse({ fontSize: 5 }).success).toBe(false);
+    expect(SettingsSchema.safeParse({ fontSize: 32 }).success).toBe(false);
   });
 });
 

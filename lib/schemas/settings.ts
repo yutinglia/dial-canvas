@@ -11,6 +11,8 @@ export const SettingsSchema = z.object({
   snapThreshold: z.number().finite().positive().default(8),
   canvasMinWidth: z.number().finite().positive().default(1200),
   canvasMinHeight: z.number().finite().positive().default(800),
+  iconSize: z.number().int().min(16).max(64).default(40),
+  fontSize: z.number().int().min(10).max(24).default(15),
   background: BackgroundSchema.default({ type: 'color', value: '#1a1d23' }),
 });
 

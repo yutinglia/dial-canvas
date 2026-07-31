@@ -37,14 +37,14 @@ export function resolveDrop(
   return next;
 }
 
-/** Default dial size in grid cells (6×5). */
+/** Default dial size in grid cells (7×6). */
 export function defaultDialSize(gridSize: number): {
   width: number;
   height: number;
 } {
   return {
-    width: Math.max(64, gridSize * 6),
-    height: Math.max(64, gridSize * 5),
+    width: Math.max(64, gridSize * 7),
+    height: Math.max(64, gridSize * 6),
   };
 }
 

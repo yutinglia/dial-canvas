@@ -69,6 +69,46 @@
         />
       </label>
 
+      <label class="mb-4 block text-sm">
+        <span class="mb-1 flex items-center justify-between text-[var(--text-muted)]">
+          <span>Icon size</span>
+          <span>{settings.iconSize}px</span>
+        </span>
+        <input
+          type="range"
+          min="16"
+          max="64"
+          step="1"
+          value={settings.iconSize}
+          class="w-full"
+          oninput={(e) => {
+            onChange({
+              iconSize: Number((e.currentTarget as HTMLInputElement).value),
+            });
+          }}
+        />
+      </label>
+
+      <label class="mb-4 block text-sm">
+        <span class="mb-1 flex items-center justify-between text-[var(--text-muted)]">
+          <span>Font size</span>
+          <span>{settings.fontSize}px</span>
+        </span>
+        <input
+          type="range"
+          min="10"
+          max="24"
+          step="1"
+          value={settings.fontSize}
+          class="w-full"
+          oninput={(e) => {
+            onChange({
+              fontSize: Number((e.currentTarget as HTMLInputElement).value),
+            });
+          }}
+        />
+      </label>
+
       <label class="mb-5 block text-sm">
         <span class="mb-1 block text-[var(--text-muted)]">Background color</span>
         <div class="flex items-center gap-3">

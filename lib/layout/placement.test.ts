@@ -113,29 +113,29 @@ describe('resolveDrop', () => {
 });
 
 describe('defaultDialSize', () => {
-  it('uses 6×5 grid cells when above the 64px floor', () => {
-    expect(defaultDialSize(16)).toEqual({ width: 96, height: 80 });
-    expect(defaultDialSize(24)).toEqual({ width: 144, height: 120 });
-    expect(defaultDialSize(32)).toEqual({ width: 192, height: 160 });
+  it('uses 7×6 grid cells when above the 64px floor', () => {
+    expect(defaultDialSize(16)).toEqual({ width: 112, height: 96 });
+    expect(defaultDialSize(24)).toEqual({ width: 168, height: 144 });
+    expect(defaultDialSize(32)).toEqual({ width: 224, height: 192 });
   });
 
   it('floors width and height at 64px for small grids', () => {
     expect(defaultDialSize(8)).toEqual({ width: 64, height: 64 });
-    expect(defaultDialSize(10)).toEqual({ width: 64, height: 64 });
+    expect(defaultDialSize(10)).toEqual({ width: 70, height: 64 });
   });
 });
 
 describe('findFirstFreeSlot', () => {
   it('returns the top-left slot on an empty canvas', () => {
     expect(findFirstFreeSlot([], 16, canvas)).toEqual(
-      rect(0, 0, 96, 80),
+      rect(0, 0, 112, 96),
     );
   });
 
   it('skips occupied slots and finds the next free one', () => {
-    const occupied = [rect(0, 0, 96, 80)];
+    const occupied = [rect(0, 0, 112, 96)];
     expect(findFirstFreeSlot(occupied, 16, canvas)).toEqual(
-      rect(96, 0, 96, 80),
+      rect(112, 0, 112, 96),
     );
   });
 
