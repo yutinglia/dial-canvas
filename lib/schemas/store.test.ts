@@ -158,6 +158,7 @@ describe('SettingsSchema', () => {
         fit: 'cover',
         cachedUrl: 'https://www.bing.com/th?id=OHR.example',
         cachedDate: '2026-08-01',
+        locked: true,
       },
     });
     expect(parsed.background).toEqual({
@@ -166,10 +167,11 @@ describe('SettingsSchema', () => {
       opacity: 1,
       cachedUrl: 'https://www.bing.com/th?id=OHR.example',
       cachedDate: '2026-08-01',
+      locked: true,
     });
   });
 
-  it('defaults bing fit and allows empty cache', () => {
+  it('defaults bing fit, locked, and allows empty cache', () => {
     const parsed = SettingsSchema.parse({
       background: { type: 'bing' },
     });
@@ -177,6 +179,7 @@ describe('SettingsSchema', () => {
       type: 'bing',
       fit: 'cover',
       opacity: 1,
+      locked: false,
     });
   });
 

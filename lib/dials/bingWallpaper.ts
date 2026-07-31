@@ -2,14 +2,34 @@
 export const BING_WALLPAPER_API_URL =
   'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1';
 
+/** Bing HPImageArchive endpoint for recent wallpapers (~8 days). */
+export const BING_WALLPAPER_LIST_URL =
+  'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8';
+
+/** Thumbnail resolution appended to Bing `urlbase`. */
+export const BING_THUMB_SUFFIX = '_640x360.jpg';
+
+export type BingWallpaperItem = {
+  url: string;
+  thumbUrl: string;
+  date: string;
+  title?: string;
+};
+
 export type BingWallpaperResult =
   | { ok: true; url: string; date: string }
   | { ok: false; error: string };
 
+export type BingWallpaperListResult =
+  | { ok: true; images: BingWallpaperItem[] }
+  | { ok: false; error: string };
+
 type BingArchiveImage = {
   url?: unknown;
+  urlbase?: unknown;
   startdate?: unknown;
   fullstartdate?: unknown;
+  title?: unknown;
 };
 
 type BingArchiveResponse = {
@@ -57,6 +77,49 @@ export function buildBingImageUrl(rawUrl: unknown): string | undefined {
   }
 }
 
+/**
+ * Build a thumbnail URL from Bing `urlbase`, falling back to the full image URL.
+ */
+export function buildBingThumbUrl(
+  urlbase: unknown,
+  fallbackUrl: string,
+): string {
+  if (typeof urlbase === 'string' && urlbase.trim()) {
+    const thumb = buildBingImageUrl(`${urlbase.trim()}${BING_THUMB_SUFFIX}`);
+    if (thumb) return thumb;
+  }
+  return fallbackUrl;
+}
+
+function parseArchiveImage(
+  raw: unknown,
+  index: number,
+  fallbackDate: string,
+): BingWallpaperItem | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const image = raw as BingArchiveImage;
+  const url = buildBingImageUrl(image.url);
+  if (!url) return undefined;
+
+  const date =
+    normalizeBingDate(image.startdate) ??
+    normalizeBingDate(image.fullstartdate) ??
+    (index === 0 ? fallbackDate : undefined);
+  if (!date) return undefined;
+
+  const title =
+    typeof image.title === 'string' && image.title.trim()
+      ? image.title.trim()
+      : undefined;
+
+  return {
+    url,
+    thumbUrl: buildBingThumbUrl(image.urlbase, url),
+    date,
+    ...(title ? { title } : {}),
+  };
+}
+
 /** Parse Bing HPImageArchive JSON into a wallpaper URL + fetch-day date. */
 export function parseBingWallpaperResponse(
   data: unknown,
@@ -80,4 +143,31 @@ export function parseBingWallpaperResponse(
   // Freshness uses the fetch calendar day, not Bing's archive startdate
   // (which can lag UTC and would keep the cache looking stale forever).
   return { ok: true, url, date: fallbackDate };
+}
+
+/** Parse Bing HPImageArchive JSON into a list of recent wallpapers. */
+export function parseBingWallpaperListResponse(
+  data: unknown,
+  fallbackDate = utcDateString(),
+): BingWallpaperListResult {
+  if (!data || typeof data !== 'object') {
+    return { ok: false, error: 'Invalid Bing response.' };
+  }
+
+  const images = (data as BingArchiveResponse).images;
+  if (!Array.isArray(images) || images.length === 0) {
+    return { ok: false, error: 'No Bing wallpaper images.' };
+  }
+
+  const parsed: BingWallpaperItem[] = [];
+  for (let i = 0; i < images.length; i++) {
+    const item = parseArchiveImage(images[i], i, fallbackDate);
+    if (item) parsed.push(item);
+  }
+
+  if (parsed.length === 0) {
+    return { ok: false, error: 'Bing wallpaper URL missing.' };
+  }
+
+  return { ok: true, images: parsed };
 }

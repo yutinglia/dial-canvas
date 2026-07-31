@@ -5,7 +5,10 @@ import {
 } from '../lib/dials/pageTitle';
 import {
   BING_WALLPAPER_API_URL,
+  BING_WALLPAPER_LIST_URL,
+  parseBingWallpaperListResponse,
   parseBingWallpaperResponse,
+  type BingWallpaperListResult,
   type BingWallpaperResult,
   utcDateString,
 } from '../lib/dials/bingWallpaper';
@@ -22,6 +25,10 @@ type FetchPageTitleMessage = {
 
 type FetchBingWallpaperMessage = {
   type: 'fetch-bing-wallpaper';
+};
+
+type FetchBingWallpaperListMessage = {
+  type: 'fetch-bing-wallpaper-list';
 };
 
 type ExtensionCommandMessage = {
@@ -62,6 +69,17 @@ function isFetchBingWallpaperMessage(
     typeof message === 'object' &&
     message !== null &&
     (message as FetchBingWallpaperMessage).type === 'fetch-bing-wallpaper'
+  );
+}
+
+function isFetchBingWallpaperListMessage(
+  message: unknown,
+): message is FetchBingWallpaperListMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    (message as FetchBingWallpaperListMessage).type ===
+      'fetch-bing-wallpaper-list'
   );
 }
 
@@ -206,7 +224,9 @@ async function fetchPageTitle(url: string): Promise<FetchPageTitleResponse> {
   }
 }
 
-async function fetchBingWallpaper(): Promise<BingWallpaperResult> {
+async function fetchBingJson(
+  url: string,
+): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
   if (!(await hasFetchHostPermission())) {
     return { ok: false, error: 'Host permission not granted.' };
   }
@@ -215,7 +235,7 @@ async function fetchBingWallpaper(): Promise<BingWallpaperResult> {
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(BING_WALLPAPER_API_URL, {
+    const response = await fetch(url, {
       method: 'GET',
       redirect: 'follow',
       signal: controller.signal,
@@ -226,7 +246,7 @@ async function fetchBingWallpaper(): Promise<BingWallpaperResult> {
     }
 
     const data: unknown = await response.json();
-    return parseBingWallpaperResponse(data, utcDateString());
+    return { ok: true, data };
   } catch (err) {
     if (!(await hasFetchHostPermission())) {
       return { ok: false, error: 'Host permission not granted.' };
@@ -241,6 +261,18 @@ async function fetchBingWallpaper(): Promise<BingWallpaperResult> {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchBingWallpaper(): Promise<BingWallpaperResult> {
+  const result = await fetchBingJson(BING_WALLPAPER_API_URL);
+  if (!result.ok) return result;
+  return parseBingWallpaperResponse(result.data, utcDateString());
+}
+
+async function fetchBingWallpaperList(): Promise<BingWallpaperListResult> {
+  const result = await fetchBingJson(BING_WALLPAPER_LIST_URL);
+  if (!result.ok) return result;
+  return parseBingWallpaperListResponse(result.data, utcDateString());
 }
 
 async function broadcastCommand(command: string) {
@@ -267,6 +299,13 @@ export default defineBackground(() => {
 
     if (isFetchBingWallpaperMessage(message)) {
       void fetchBingWallpaper().then((result) => {
+        sendResponse(result);
+      });
+      return true;
+    }
+
+    if (isFetchBingWallpaperListMessage(message)) {
+      void fetchBingWallpaperList().then((result) => {
         sendResponse(result);
       });
       return true;

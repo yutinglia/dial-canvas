@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildBingImageUrl,
+  buildBingThumbUrl,
   normalizeBingDate,
+  parseBingWallpaperListResponse,
   parseBingWallpaperResponse,
   utcDateString,
 } from './bingWallpaper';
@@ -52,6 +54,23 @@ describe('buildBingImageUrl', () => {
   });
 });
 
+describe('buildBingThumbUrl', () => {
+  it('builds a resized URL from urlbase', () => {
+    expect(buildBingThumbUrl('/th?id=OHR.example', 'https://fallback')).toBe(
+      'https://www.bing.com/th?id=OHR.example_640x360.jpg',
+    );
+  });
+
+  it('falls back to the full image URL', () => {
+    expect(buildBingThumbUrl('', 'https://www.bing.com/full.jpg')).toBe(
+      'https://www.bing.com/full.jpg',
+    );
+    expect(buildBingThumbUrl(null, 'https://www.bing.com/full.jpg')).toBe(
+      'https://www.bing.com/full.jpg',
+    );
+  });
+});
+
 describe('parseBingWallpaperResponse', () => {
   it('parses a normal archive payload using the fetch-day date', () => {
     expect(
@@ -96,6 +115,90 @@ describe('parseBingWallpaperResponse', () => {
       error: 'No Bing wallpaper images.',
     });
     expect(parseBingWallpaperResponse({ images: [{}] })).toEqual({
+      ok: false,
+      error: 'Bing wallpaper URL missing.',
+    });
+  });
+});
+
+describe('parseBingWallpaperListResponse', () => {
+  it('parses multiple images with thumbnails and titles', () => {
+    expect(
+      parseBingWallpaperListResponse(
+        {
+          images: [
+            {
+              url: '/th?id=OHR.today_1920x1080.jpg',
+              urlbase: '/th?id=OHR.today',
+              startdate: '20260801',
+              title: 'Today view',
+            },
+            {
+              url: '/th?id=OHR.yesterday_1920x1080.jpg',
+              urlbase: '/th?id=OHR.yesterday',
+              startdate: '20260731',
+            },
+          ],
+        },
+        '2026-08-01',
+      ),
+    ).toEqual({
+      ok: true,
+      images: [
+        {
+          url: 'https://www.bing.com/th?id=OHR.today_1920x1080.jpg',
+          thumbUrl: 'https://www.bing.com/th?id=OHR.today_640x360.jpg',
+          date: '2026-08-01',
+          title: 'Today view',
+        },
+        {
+          url: 'https://www.bing.com/th?id=OHR.yesterday_1920x1080.jpg',
+          thumbUrl: 'https://www.bing.com/th?id=OHR.yesterday_640x360.jpg',
+          date: '2026-07-31',
+        },
+      ],
+    });
+  });
+
+  it('skips invalid entries and falls back date for the first image', () => {
+    expect(
+      parseBingWallpaperListResponse(
+        {
+          images: [
+            { url: '/th?id=OHR.a' },
+            { url: '' },
+            { url: '/th?id=OHR.b', startdate: '20260730' },
+          ],
+        },
+        '2026-08-01',
+      ),
+    ).toEqual({
+      ok: true,
+      images: [
+        {
+          url: 'https://www.bing.com/th?id=OHR.a',
+          thumbUrl: 'https://www.bing.com/th?id=OHR.a',
+          date: '2026-08-01',
+        },
+        {
+          url: 'https://www.bing.com/th?id=OHR.b',
+          thumbUrl: 'https://www.bing.com/th?id=OHR.b',
+          date: '2026-07-30',
+        },
+      ],
+    });
+  });
+
+  it('returns errors for empty or invalid payloads', () => {
+    expect(parseBingWallpaperListResponse(null)).toEqual({
+      ok: false,
+      error: 'Invalid Bing response.',
+    });
+    expect(parseBingWallpaperListResponse({ images: [] })).toEqual({
+      ok: false,
+      error: 'No Bing wallpaper images.',
+    });
+    expect(parseBingWallpaperListResponse({ images: [{}] })).toEqual({
       ok: false,
       error: 'Bing wallpaper URL missing.',
     });

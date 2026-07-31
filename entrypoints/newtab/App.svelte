@@ -37,6 +37,8 @@
     requestBookmarksPermission,
   } from '../../lib/dials/bookmarks';
   import {
+    type BingWallpaperItem,
+    type BingWallpaperListResult,
     type BingWallpaperResult,
     utcDateString,
   } from '../../lib/dials/bingWallpaper';
@@ -97,6 +99,7 @@
   function isBingCacheFresh(
     bg: Extract<Background, { type: 'bing' }>,
   ): boolean {
+    if (bg.locked && bg.cachedUrl) return true;
     return Boolean(bg.cachedUrl && bg.cachedDate === utcDateString());
   }
 
@@ -207,6 +210,7 @@
               opacity: current.opacity,
               cachedUrl: result.url,
               cachedDate: result.date,
+              locked: false,
             },
           },
         },
@@ -438,6 +442,7 @@
           type: 'bing',
           fit,
           opacity,
+          locked: existing?.locked ?? false,
           ...(existing?.cachedUrl
             ? {
                 cachedUrl: existing.cachedUrl,
@@ -452,8 +457,78 @@
     return true;
   }
 
+  async function onLoadBingWallpaperList(): Promise<BingWallpaperListResult> {
+    if (!(await ensureHostPermissionForBing())) {
+      return { ok: false, error: 'Host permission not granted.' };
+    }
+    try {
+      const result = (await browser.runtime.sendMessage({
+        type: 'fetch-bing-wallpaper-list',
+      })) as BingWallpaperListResult | undefined;
+      if (!result) {
+        return { ok: false, error: 'No response.' };
+      }
+      return result;
+    } catch {
+      return { ok: false, error: 'Failed to fetch Bing wallpaper list.' };
+    }
+  }
+
+  async function onSelectBingWallpaper(
+    item: BingWallpaperItem,
+    options: { locked: boolean },
+  ) {
+    if (!store) return;
+    if (store.settings.background.type !== 'bing') return;
+    const current = store.settings.background;
+    const cachedDate = options.locked ? item.date : utcDateString();
+    if (
+      current.cachedUrl === item.url &&
+      current.cachedDate === cachedDate &&
+      current.locked === options.locked
+    ) {
+      applyBackground(store.settings);
+      return;
+    }
+    await persist(
+      {
+        ...store,
+        settings: {
+          ...store.settings,
+          background: {
+            type: 'bing',
+            fit: current.fit,
+            opacity: current.opacity,
+            cachedUrl: item.url,
+            cachedDate,
+            locked: options.locked,
+          },
+        },
+      },
+      true,
+    );
+  }
+
   async function onRefreshBingWallpaper() {
     if (!(await ensureHostPermissionForBing())) return;
+    if (store && store.settings.background.type === 'bing') {
+      const current = store.settings.background;
+      if (current.locked) {
+        await persist(
+          {
+            ...store,
+            settings: {
+              ...store.settings,
+              background: {
+                ...current,
+                locked: false,
+              },
+            },
+          },
+          true,
+        );
+      }
+    }
     void ensureBingWallpaper(true);
   }
 
@@ -821,6 +896,8 @@
       onImportBookmarks={importBookmarks}
       onSelectBing={onSelectBing}
       onRefreshBing={onRefreshBingWallpaper}
+      onLoadBingList={onLoadBingWallpaperList}
+      onSelectBingWallpaper={onSelectBingWallpaper}
       onToast={showToast}
     />
 

@@ -178,10 +178,19 @@
     "message": "Choose image…"
   },
   "backgroundBingHint": {
-    "message": "Uses Bing’s daily homepage wallpaper."
+    "message": "Choose a recent Bing homepage wallpaper."
   },
   "backgroundBingRefresh": {
     "message": "Refresh today"
+  },
+  "backgroundBingLoading": {
+    "message": "Loading recent wallpapers…"
+  },
+  "backgroundBingListFailed": {
+    "message": "Could not load recent Bing wallpapers."
+  },
+  "backgroundBingToday": {
+    "message": "Today"
   },
   "wallpaperUploading": {
     "message": "Uploading…"

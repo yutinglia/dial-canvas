@@ -60,6 +60,11 @@ export const BackgroundSchema = z.discriminatedUnion('type', [
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
+    /**
+     * When true, keep the selected Bing image and skip daily auto-refresh
+     * (used for past wallpapers from the recent picker).
+     */
+    locked: z.boolean().default(false),
   }),
 ]);
 

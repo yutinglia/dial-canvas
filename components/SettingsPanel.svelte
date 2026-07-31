@@ -2,6 +2,10 @@
   import type { Background, Settings } from '../lib/schemas/settings';
   import { DEFAULT_BACKGROUND_OPACITY } from '../lib/schemas/settings';
   import { fileToWallpaperDataUrl } from '../lib/dials/wallpaperImage';
+  import type {
+    BingWallpaperItem,
+    BingWallpaperListResult,
+  } from '../lib/dials/bingWallpaper';
   import { t } from '../lib/i18n';
 
   type WallpaperSource = 'color' | 'url' | 'upload' | 'bing';
@@ -19,7 +23,12 @@
     onReset: () => void;
     onImportBookmarks: () => void;
     onSelectBing: () => boolean | Promise<boolean>;
-    onRefreshBing: () => void;
+    onRefreshBing: () => void | Promise<void>;
+    onLoadBingList: () => Promise<BingWallpaperListResult>;
+    onSelectBingWallpaper: (
+      item: BingWallpaperItem,
+      options: { locked: boolean },
+    ) => void | Promise<void>;
     onToast: (message: string) => void;
   }
 
@@ -34,6 +43,8 @@
     onImportBookmarks,
     onSelectBing,
     onRefreshBing,
+    onLoadBingList,
+    onSelectBingWallpaper,
     onToast,
   }: Props = $props();
 
@@ -42,6 +53,10 @@
   let wallpaperUrl = $state('');
   let source = $state<WallpaperSource>('color');
   let uploading = $state(false);
+  let bingImages = $state<BingWallpaperItem[]>([]);
+  let bingListLoading = $state(false);
+  let bingListError = $state('');
+  let bingListLoaded = $state(false);
 
   function currentFit(): 'cover' | 'contain' | 'tile' {
     const bg = settings.background;
@@ -74,6 +89,55 @@
           : '';
     }
   });
+
+  $effect(() => {
+    if (!open || source !== 'bing') return;
+    if (bingListLoaded || bingListLoading) return;
+    void loadBingList();
+  });
+
+  async function loadBingList() {
+    bingListLoading = true;
+    bingListError = '';
+    try {
+      const result = await onLoadBingList();
+      if (!result.ok) {
+        bingImages = [];
+        bingListError = result.error;
+        bingListLoaded = true;
+        return;
+      }
+      bingImages = result.images;
+      bingListLoaded = true;
+    } catch {
+      bingImages = [];
+      bingListError = 'Failed to fetch Bing wallpaper list.';
+      bingListLoaded = true;
+    } finally {
+      bingListLoading = false;
+    }
+  }
+
+  function resetBingListCache() {
+    bingImages = [];
+    bingListError = '';
+    bingListLoaded = false;
+  }
+
+  async function refreshBingToday() {
+    resetBingListCache();
+    await onRefreshBing();
+    void loadBingList();
+  }
+
+  async function pickBingWallpaper(item: BingWallpaperItem, index: number) {
+    await onSelectBingWallpaper(item, { locked: index !== 0 });
+  }
+
+  function isBingSelected(item: BingWallpaperItem): boolean {
+    const bg = settings.background;
+    return bg.type === 'bing' && bg.cachedUrl === item.url;
+  }
 
   function onKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') onClose();
@@ -185,7 +249,12 @@
     if (next === 'bing') {
       void (async () => {
         const ok = await onSelectBing();
-        if (!ok) source = deriveSource(settings.background);
+        if (!ok) {
+          source = deriveSource(settings.background);
+          return;
+        }
+        resetBingListCache();
+        void loadBingList();
       })();
     }
   }
@@ -489,12 +558,56 @@
           <p class="mb-2 text-[var(--text-muted)]">{t('backgroundBingHint')}</p>
           <button
             type="button"
-            class="rounded-md px-3 py-1.5"
+            class="mb-3 rounded-md px-3 py-1.5"
             style:border="1px solid var(--dial-border)"
-            onclick={onRefreshBing}
+            onclick={() => void refreshBingToday()}
           >
             {t('backgroundBingRefresh')}
           </button>
+
+          {#if bingListLoading && bingImages.length === 0}
+            <p class="text-[var(--text-muted)]">{t('backgroundBingLoading')}</p>
+          {:else if bingListError && bingImages.length === 0}
+            <p class="text-[var(--text-muted)]">{t('backgroundBingListFailed')}</p>
+          {:else if bingImages.length > 0}
+            <div class="grid grid-cols-2 gap-2">
+              {#each bingImages as item, index (item.url)}
+                <button
+                  type="button"
+                  class="group overflow-hidden rounded-md text-left outline-none"
+                  style:border={isBingSelected(item)
+                    ? '2px solid var(--accent)'
+                    : '1px solid var(--dial-border)'}
+                  title={item.title ? `${item.date} — ${item.title}` : item.date}
+                  aria-pressed={isBingSelected(item)}
+                  onclick={() => void pickBingWallpaper(item, index)}
+                >
+                  <div class="relative aspect-video overflow-hidden bg-black/30">
+                    <img
+                      src={item.thumbUrl}
+                      alt={item.title ?? item.date}
+                      class="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    {#if index === 0}
+                      <span
+                        class="absolute left-1 top-1 rounded px-1.5 py-0.5 text-[10px] leading-none"
+                        style:background="var(--toolbar-bg)"
+                        style:color="var(--dial-title)"
+                      >
+                        {t('backgroundBingToday')}
+                      </span>
+                    {/if}
+                  </div>
+                  <div
+                    class="truncate px-1.5 py-1 text-[11px] text-[var(--text-muted)]"
+                  >
+                    {item.date}
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/if}
 
