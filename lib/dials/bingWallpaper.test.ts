@@ -53,7 +53,7 @@ describe('buildBingImageUrl', () => {
 });
 
 describe('parseBingWallpaperResponse', () => {
-  it('parses a normal archive payload', () => {
+  it('parses a normal archive payload using the fetch-day date', () => {
     expect(
       parseBingWallpaperResponse(
         {
@@ -69,7 +69,7 @@ describe('parseBingWallpaperResponse', () => {
     ).toEqual({
       ok: true,
       url: 'https://www.bing.com/th?id=OHR.example_1920x1080.jpg',
-      date: '2026-08-01',
+      date: '2026-08-02',
     });
   });
 

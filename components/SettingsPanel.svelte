@@ -9,11 +9,15 @@
     open: boolean;
     settings: Settings;
     onClose: () => void;
-    onChange: (partial: Partial<Settings>) => void;
+    onChange: (
+      partial: Partial<Settings>,
+      opts?: { immediate?: boolean },
+    ) => void;
     onExport: () => void;
     onImportFile: (file: File) => void;
     onReset: () => void;
     onImportBookmarks: () => void;
+    onSelectBing: () => boolean | Promise<boolean>;
     onRefreshBing: () => void;
     onToast: (message: string) => void;
   }
@@ -27,6 +31,7 @@
     onImportFile,
     onReset,
     onImportBookmarks,
+    onSelectBing,
     onRefreshBing,
     onToast,
   }: Props = $props();
@@ -66,7 +71,7 @@
   }
 
   function setColorBackground(value: string) {
-    onChange({ background: { type: 'color', value } });
+    onChange({ background: { type: 'color', value } }, { immediate: true });
   }
 
   function applyWallpaperUrl() {
@@ -80,23 +85,32 @@
       source = 'color';
       return;
     }
-    onChange({
-      background: { type: 'image', value, fit: currentFit() },
-    });
+    onChange(
+      {
+        background: { type: 'image', value, fit: currentFit() },
+      },
+      { immediate: true },
+    );
   }
 
   function setFit(fit: 'cover' | 'contain' | 'tile') {
     const bg = settings.background;
     if (bg.type === 'image') {
-      onChange({
-        background: { ...bg, fit } satisfies Background,
-      });
+      onChange(
+        {
+          background: { ...bg, fit } satisfies Background,
+        },
+        { immediate: true },
+      );
       return;
     }
     if (bg.type === 'bing') {
-      onChange({
-        background: { ...bg, fit } satisfies Background,
-      });
+      onChange(
+        {
+          background: { ...bg, fit } satisfies Background,
+        },
+        { immediate: true },
+      );
     }
   }
 
@@ -118,13 +132,16 @@
           : '';
       wallpaperUrl = existing;
       if (existing) {
-        onChange({
-          background: {
-            type: 'image',
-            value: existing,
-            fit: currentFit(),
+        onChange(
+          {
+            background: {
+              type: 'image',
+              value: existing,
+              fit: currentFit(),
+            },
           },
-        });
+          { immediate: true },
+        );
       }
       return;
     }
@@ -139,20 +156,10 @@
       return;
     }
     if (next === 'bing') {
-      const existing =
-        settings.background.type === 'bing' ? settings.background : null;
-      onChange({
-        background: {
-          type: 'bing',
-          fit: currentFit(),
-          ...(existing?.cachedUrl
-            ? {
-                cachedUrl: existing.cachedUrl,
-                cachedDate: existing.cachedDate,
-              }
-            : {}),
-        },
-      });
+      void (async () => {
+        const ok = await onSelectBing();
+        if (!ok) source = deriveSource(settings.background);
+      })();
     }
   }
 
@@ -167,13 +174,16 @@
         return;
       }
       source = 'upload';
-      onChange({
-        background: {
-          type: 'image',
-          value: result.dataUrl,
-          fit: currentFit(),
+      onChange(
+        {
+          background: {
+            type: 'image',
+            value: result.dataUrl,
+            fit: currentFit(),
+          },
         },
-      });
+        { immediate: true },
+      );
     } finally {
       uploading = false;
     }
@@ -227,9 +237,12 @@
           type="checkbox"
           checked={settings.snapEnabled}
           onchange={(e) =>
-            onChange({
-              snapEnabled: (e.currentTarget as HTMLInputElement).checked,
-            })
+            onChange(
+              {
+                snapEnabled: (e.currentTarget as HTMLInputElement).checked,
+              },
+              { immediate: true },
+            )
           }
         />
       </label>

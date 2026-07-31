@@ -57,7 +57,7 @@ export function buildBingImageUrl(rawUrl: unknown): string | undefined {
   }
 }
 
-/** Parse Bing HPImageArchive JSON into a wallpaper URL + date. */
+/** Parse Bing HPImageArchive JSON into a wallpaper URL + fetch-day date. */
 export function parseBingWallpaperResponse(
   data: unknown,
   fallbackDate = utcDateString(),
@@ -77,10 +77,7 @@ export function parseBingWallpaperResponse(
     return { ok: false, error: 'Bing wallpaper URL missing.' };
   }
 
-  const date =
-    normalizeBingDate(first.startdate) ??
-    normalizeBingDate(first.fullstartdate) ??
-    fallbackDate;
-
-  return { ok: true, url, date };
+  // Freshness uses the fetch calendar day, not Bing's archive startdate
+  // (which can lag UTC and would keep the cache looking stale forever).
+  return { ok: true, url, date: fallbackDate };
 }

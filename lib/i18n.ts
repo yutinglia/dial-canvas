@@ -64,6 +64,7 @@ const FALLBACKS: Record<string, string> = {
   wallpaperReadFailed: 'Could not read that image file.',
   wallpaperTooLarge: 'Image is too large even after compression.',
   bingFetchFailed: 'Could not fetch Bing daily wallpaper.',
+  bingHostPermission: 'Permission needed to fetch Bing wallpaper.',
   fitCover: 'Cover',
   fitContain: 'Contain',
   fitTile: 'Tile',

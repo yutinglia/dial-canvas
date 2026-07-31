@@ -198,6 +198,9 @@
   "bingFetchFailed": {
     "message": "Could not fetch Bing daily wallpaper."
   },
+  "bingHostPermission": {
+    "message": "Permission needed to fetch Bing wallpaper."
+  },
   "fitCover": {
     "message": "Cover"
   },

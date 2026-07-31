@@ -12,7 +12,7 @@ export default defineConfig({
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
     default_locale: 'en',
-    permissions: ['storage'],
+    permissions: ['storage', 'unlimitedStorage'],
     optional_permissions: ['bookmarks'],
     host_permissions: ['http://*/*', 'https://*/*'],
     icons: {

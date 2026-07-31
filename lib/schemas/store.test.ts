@@ -231,6 +231,30 @@ describe('parseStore', () => {
     expect(result.settings).toEqual(DEFAULT_SETTINGS);
   });
 
+  it('keeps other settings when only background is invalid', () => {
+    const result = parseStoreWithMeta({
+      version: STORE_VERSION,
+      pages: [{ id: 'page-home', name: 'Home', dials: [] }],
+      activePageId: 'page-home',
+      settings: {
+        gridSize: 24,
+        snapEnabled: true,
+        snapThreshold: 12,
+        canvasMinWidth: 1400,
+        canvasMinHeight: 900,
+        iconSize: 48,
+        fontSize: 18,
+        background: { type: 'image', value: 'javascript:alert(1)', fit: 'cover' },
+      },
+    });
+    expect(result.repaired).toBe(true);
+    expect(result.store.settings.gridSize).toBe(24);
+    expect(result.store.settings.snapEnabled).toBe(true);
+    expect(result.store.settings.iconSize).toBe(48);
+    expect(result.store.settings.fontSize).toBe(18);
+    expect(result.store.settings.background).toEqual(DEFAULT_SETTINGS.background);
+  });
+
   it('returns an empty store for non-objects', () => {
     expect(parseStore(null)).toEqual(createEmptyStore());
     expect(parseStore('oops')).toEqual(createEmptyStore());

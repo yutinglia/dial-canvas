@@ -40,6 +40,10 @@
     type BingWallpaperResult,
     utcDateString,
   } from '../../lib/dials/bingWallpaper';
+  import {
+    hasFetchHostPermission,
+    requestFetchHostPermission,
+  } from '../../lib/dials/hostPermission';
   import { t } from '../../lib/i18n';
 
   const EDIT_HINT_KEY = 'msd-edit-hint-seen';
@@ -131,6 +135,22 @@
     applyImageBackground(bg.value, bg.fit);
   }
 
+  async function ensureHostPermissionForBing(): Promise<boolean> {
+    let allowed = await hasFetchHostPermission();
+    if (!allowed) {
+      allowed = await requestFetchHostPermission();
+    }
+    if (!allowed) {
+      showToast(t('bingHostPermission'));
+      return false;
+    }
+    return true;
+  }
+
+  function isHostPermissionError(error: string | undefined): boolean {
+    return Boolean(error?.toLowerCase().includes('host permission'));
+  }
+
   async function ensureBingWallpaper(force = false) {
     if (!store || store.settings.background.type !== 'bing') return;
     const bg = store.settings.background;
@@ -146,7 +166,11 @@
       })) as BingWallpaperResult | undefined;
       if (!store || store.settings.background.type !== 'bing') return;
       if (!result?.ok) {
-        showToast(t('bingFetchFailed'));
+        showToast(
+          isHostPermissionError(result?.error)
+            ? t('bingHostPermission')
+            : t('bingFetchFailed'),
+        );
         applyBackground(store.settings);
         return;
       }
@@ -172,7 +196,7 @@
             },
           },
         },
-        false,
+        true,
       );
     } catch {
       showToast(t('bingFetchFailed'));
@@ -264,7 +288,7 @@
           return;
         }
         if (settingsOpen) {
-          settingsOpen = false;
+          closeSettings();
           return;
         }
         if (editMode) editMode = false;
@@ -280,6 +304,21 @@
       }
     };
     window.addEventListener('keydown', onKey);
+
+    const flushPending = () => {
+      void saver.flush().catch(() => {
+        // Error already toasted via onError.
+      });
+    };
+
+    const onPageHide = () => {
+      flushPending();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushPending();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     const onStorageChanged = (
       changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
@@ -316,12 +355,12 @@
 
     return () => {
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       browser.storage.onChanged.removeListener(onStorageChanged);
       browser.runtime.onMessage.removeListener(onMessage);
       if (toastTimer) clearTimeout(toastTimer);
-      void saver.flush().catch(() => {
-        // Error already toasted via onError.
-      });
+      flushPending();
     };
   });
 
@@ -344,22 +383,67 @@
     void persist(withActiveDials(store, dials), opts?.immediate ?? true);
   }
 
-  function onSettingsChange(partial: Partial<Settings>) {
+  function onSettingsChange(
+    partial: Partial<Settings>,
+    opts?: { immediate?: boolean },
+  ) {
     if (!store) return;
     const next: Store = {
       ...store,
       settings: { ...store.settings, ...partial },
     };
     void (async () => {
-      await persist(next, false);
+      await persist(next, opts?.immediate ?? false);
       if (next.settings.background.type === 'bing') {
         void ensureBingWallpaper(false);
       }
     })();
   }
 
-  function onRefreshBingWallpaper() {
+  async function onSelectBing(): Promise<boolean> {
+    if (!store) return false;
+    if (!(await ensureHostPermissionForBing())) return false;
+
+    const existing =
+      store.settings.background.type === 'bing'
+        ? store.settings.background
+        : null;
+    const fit =
+      existing?.fit ??
+      (store.settings.background.type === 'image'
+        ? store.settings.background.fit
+        : 'cover');
+    const next: Store = {
+      ...store,
+      settings: {
+        ...store.settings,
+        background: {
+          type: 'bing',
+          fit,
+          ...(existing?.cachedUrl
+            ? {
+                cachedUrl: existing.cachedUrl,
+                cachedDate: existing.cachedDate,
+              }
+            : {}),
+        },
+      },
+    };
+    await persist(next, true);
+    void ensureBingWallpaper(false);
+    return true;
+  }
+
+  async function onRefreshBingWallpaper() {
+    if (!(await ensureHostPermissionForBing())) return;
     void ensureBingWallpaper(true);
+  }
+
+  function closeSettings() {
+    settingsOpen = false;
+    void saver.flush().catch(() => {
+      // Error already toasted via onError.
+    });
   }
 
   function toggleEdit() {
@@ -688,12 +772,13 @@
     <SettingsPanel
       open={settingsOpen}
       settings={store.settings}
-      onClose={() => (settingsOpen = false)}
+      onClose={closeSettings}
       onChange={onSettingsChange}
       onExport={exportStore}
       onImportFile={importStoreFile}
       onReset={resetStore}
       onImportBookmarks={importBookmarks}
+      onSelectBing={onSelectBing}
       onRefreshBing={onRefreshBingWallpaper}
       onToast={showToast}
     />

@@ -135,6 +135,29 @@ function normalizeActivePageId(pages: Page[], activePageId: unknown): string {
   return pages[0]!.id;
 }
 
+/**
+ * Recover settings without wiping unrelated fields when only `background` is
+ * invalid (e.g. a bad wallpaper URL).
+ */
+function recoverSettings(raw: unknown): { settings: Settings; repaired: boolean } {
+  const settingsResult = SettingsSchema.safeParse(raw);
+  if (settingsResult.success) {
+    return { settings: settingsResult.data, repaired: false };
+  }
+
+  if (raw && typeof raw === 'object') {
+    const retry = SettingsSchema.safeParse({
+      ...(raw as Record<string, unknown>),
+      background: DEFAULT_SETTINGS.background,
+    });
+    if (retry.success) {
+      return { settings: retry.data, repaired: true };
+    }
+  }
+
+  return { settings: { ...DEFAULT_SETTINGS }, repaired: true };
+}
+
 function recoverStore(raw: Record<string, unknown>): ParseStoreResult {
   let droppedDialCount = 0;
   let repaired = false;
@@ -156,11 +179,8 @@ function recoverStore(raw: Record<string, unknown>): ParseStoreResult {
     repaired = true;
   }
 
-  const settingsResult = SettingsSchema.safeParse(raw.settings);
-  const settings: Settings = settingsResult.success
-    ? settingsResult.data
-    : { ...DEFAULT_SETTINGS };
-  if (!settingsResult.success) repaired = true;
+  const recoveredSettings = recoverSettings(raw.settings);
+  if (recoveredSettings.repaired) repaired = true;
 
   const activePageId = normalizeActivePageId(pages, raw.activePageId);
   if (activePageId !== raw.activePageId) repaired = true;
@@ -170,7 +190,7 @@ function recoverStore(raw: Record<string, unknown>): ParseStoreResult {
       version: STORE_VERSION,
       pages,
       activePageId,
-      settings,
+      settings: recoveredSettings.settings,
     },
     repaired: repaired || droppedDialCount > 0,
     droppedDialCount,
