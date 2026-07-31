@@ -69,8 +69,15 @@
   const activeDials = $derived(store ? getActiveDials(store) : []);
 
   const saver = createDebouncedSaver(200, {
-    onError: () => {
-      showToast(t('saveFailed'));
+    onError: (error) => {
+      console.error('Failed to save speed dial store', error);
+      const detail =
+        error instanceof Error && error.message
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : '';
+      showToast(detail ? `${t('saveFailed')} (${detail})` : t('saveFailed'));
     },
   });
 
@@ -393,7 +400,9 @@
       settings: { ...store.settings, ...partial },
     };
     void (async () => {
-      await persist(next, opts?.immediate ?? false);
+      // Always write settings immediately — debounce was dropping changes when
+      // new-tab pages unloaded before the timer/flush ran.
+      await persist(next, opts?.immediate ?? true);
       if (next.settings.background.type === 'bing') {
         void ensureBingWallpaper(false);
       }

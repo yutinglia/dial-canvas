@@ -50,8 +50,11 @@ export async function getStore(): Promise<LoadStoreResult> {
 }
 
 export async function setStore(store: Store): Promise<void> {
+  // Svelte 5 $state wraps objects in Proxies; storage.local uses structured
+  // clone and throws DataCloneError on Proxies. Store is plain JSON.
+  const plain = JSON.parse(JSON.stringify(store)) as Store;
   await enqueueWrite(async () => {
-    await browser.storage.local.set({ [STORAGE_KEYS.store]: store });
+    await browser.storage.local.set({ [STORAGE_KEYS.store]: plain });
   });
 }
 
@@ -128,21 +131,14 @@ export function createDebouncedSaver(
   };
 
   const saveNow = async (store: Store) => {
-    pending = undefined;
     if (timer) {
       clearTimeout(timer);
       timer = undefined;
     }
-    inflight += 1;
-    try {
-      await setStore(store);
-    } catch (error) {
-      if (!pending) pending = store;
-      options.onError?.(error);
-      throw error;
-    } finally {
-      inflight -= 1;
-    }
+    // Queue through flush so a concurrent schedule() during the write is not
+    // wiped by clearing `pending` up front (old saveNow discarded newer work).
+    pending = store;
+    await flush();
   };
 
   const hasPending = () => pending !== undefined || inflight > 0;

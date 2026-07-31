@@ -60,6 +60,16 @@ Unit tests live next to pure modules under `lib/**/*.test.ts` (layout math, Zod/
 1. `npm run build`
 2. Open `about:debugging` → **This Firefox**
 3. **Load Temporary Add-on…** → select `.output/firefox-mv3/manifest.json`
+4. After any code change: run `npm run build` again, then click **Reload** on the temporary addon (or remove and re-load the same `manifest.json`)
+
+Use `.output/firefox-mv3` only. Do **not** load `.output/firefox-mv3-dev` unless `npm run dev` is running (that build expects Vite on localhost).
+
+Temporary add-ons are removed when Firefox restarts, which normally clears `browser.storage.local`. To keep storage across reloads/restarts while developing, set both of these to `true` in `about:config`:
+
+- `extensions.webextensions.keepStorageOnUninstall`
+- `extensions.webextensions.keepUuidOnUninstall`
+
+See [Testing persistent and restart features](https://extensionworkshop.com/documentation/develop/testing-persistent-and-restart-features/).
 
 Or use `npm run dev`, which launches Firefox with the extension loaded via web-ext.
 

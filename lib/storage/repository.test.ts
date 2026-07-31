@@ -45,6 +45,19 @@ beforeEach(async () => {
 });
 
 describe('setStore write queue', () => {
+  it('writes a Proxy-wrapped store without DataCloneError', async () => {
+    const plain = sampleStore({
+      settings: { ...DEFAULT_SETTINGS, gridSize: 32 },
+    });
+    const proxied = new Proxy(plain, {});
+    await expect(setStore(proxied as Store)).resolves.toBeUndefined();
+
+    const stored = await browser.storage.local.get(STORAGE_KEYS.store);
+    const persisted = stored[STORAGE_KEYS.store] as Store;
+    expect(persisted.settings.gridSize).toBe(32);
+    expect(getActiveDials(persisted)).toEqual([validDial]);
+  });
+
   it('serializes concurrent writes so the last write wins', async () => {
     const first = withActiveDials(sampleStore(), [
       { ...validDial, title: 'First' },
@@ -192,6 +205,42 @@ describe('createDebouncedSaver', () => {
     await expect(saver.saveNow(store)).rejects.toThrow('quota');
     expect(onError).toHaveBeenCalledOnce();
     expect(saver.hasPending()).toBe(true);
+  });
+
+  it('keeps a schedule that arrives while saveNow is writing', async () => {
+    const older = sampleStore({
+      settings: { ...DEFAULT_SETTINGS, gridSize: 8 },
+    });
+    const newer = sampleStore({
+      settings: { ...DEFAULT_SETTINGS, gridSize: 48 },
+    });
+
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let setCalls = 0;
+    const originalSet = browser.storage.local.set.bind(browser.storage.local);
+    vi.spyOn(browser.storage.local, 'set').mockImplementation(async (items) => {
+      setCalls += 1;
+      if (setCalls === 1) await gate;
+      return originalSet(items);
+    });
+
+    const saver = createDebouncedSaver(60_000);
+    const savePromise = saver.saveNow(older);
+    // Wait until the first write is blocked in set().
+    for (let i = 0; i < 10 && setCalls < 1; i += 1) {
+      await Promise.resolve();
+    }
+    expect(setCalls).toBe(1);
+    saver.schedule(newer);
+    release();
+    await savePromise;
+    await saver.flush();
+
+    const stored = await browser.storage.local.get(STORAGE_KEYS.store);
+    expect((stored[STORAGE_KEYS.store] as Store).settings.gridSize).toBe(48);
   });
 });
 
