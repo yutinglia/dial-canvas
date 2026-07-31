@@ -116,20 +116,26 @@
     title: string;
     url: string;
     faviconUrl?: string;
+    iconSize?: number;
+    fontSize?: number;
   }) {
     if (!store) return;
 
     if (editingDial) {
-      const dials = store.dials.map((d) =>
-        d.id === editingDial!.id
-          ? {
-              ...d,
-              title: values.title,
-              url: values.url,
-              faviconUrl: values.faviconUrl,
-            }
-          : d,
-      );
+      const dials = store.dials.map((d) => {
+        if (d.id !== editingDial!.id) return d;
+        const next: Dial = {
+          ...d,
+          title: values.title,
+          url: values.url,
+          faviconUrl: values.faviconUrl,
+        };
+        if (values.iconSize !== undefined) next.iconSize = values.iconSize;
+        else delete next.iconSize;
+        if (values.fontSize !== undefined) next.fontSize = values.fontSize;
+        else delete next.fontSize;
+        return next;
+      });
       await persist({ ...store, dials }, true);
     } else {
       const slot = findFirstFreeSlot(
@@ -147,6 +153,12 @@
         title: values.title,
         url: values.url,
         faviconUrl: values.faviconUrl,
+        ...(values.iconSize !== undefined
+          ? { iconSize: values.iconSize }
+          : {}),
+        ...(values.fontSize !== undefined
+          ? { fontSize: values.fontSize }
+          : {}),
         ...slot,
       };
       await persist({ ...store, dials: [...store.dials, dial] }, true);
@@ -187,6 +199,8 @@
     <DialEditorModal
       open={editorOpen}
       dial={editingDial}
+      globalIconSize={store.settings.iconSize}
+      globalFontSize={store.settings.fontSize}
       onClose={closeEditor}
       onSave={saveDial}
       onDelete={editingDial ? deleteDial : undefined}

@@ -17,6 +17,8 @@ export const DialSchema = z.object({
   title: z.string().min(1),
   url: urlString,
   faviconUrl: z.string().optional(),
+  iconSize: z.number().int().min(16).max(64).optional(),
+  fontSize: z.number().int().min(10).max(24).optional(),
   x: z.number().finite(),
   y: z.number().finite(),
   width: z.number().finite().min(64),

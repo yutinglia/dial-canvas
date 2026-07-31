@@ -31,6 +31,28 @@ describe('DialSchema', () => {
       DialSchema.safeParse({ ...validDial, width: 32 }).success,
     ).toBe(false);
   });
+
+  it('accepts optional in-range iconSize and fontSize', () => {
+    const withSizes = { ...validDial, iconSize: 48, fontSize: 18 };
+    expect(DialSchema.parse(withSizes)).toEqual(withSizes);
+    expect(DialSchema.parse(validDial).iconSize).toBeUndefined();
+    expect(DialSchema.parse(validDial).fontSize).toBeUndefined();
+  });
+
+  it('rejects out-of-range dial iconSize and fontSize', () => {
+    expect(
+      DialSchema.safeParse({ ...validDial, iconSize: 8 }).success,
+    ).toBe(false);
+    expect(
+      DialSchema.safeParse({ ...validDial, iconSize: 128 }).success,
+    ).toBe(false);
+    expect(
+      DialSchema.safeParse({ ...validDial, fontSize: 5 }).success,
+    ).toBe(false);
+    expect(
+      DialSchema.safeParse({ ...validDial, fontSize: 32 }).success,
+    ).toBe(false);
+  });
 });
 
 describe('SettingsSchema', () => {

@@ -5,26 +5,49 @@
   interface Props {
     open: boolean;
     dial: Dial | null;
+    globalIconSize: number;
+    globalFontSize: number;
     onClose: () => void;
-    onSave: (values: { title: string; url: string; faviconUrl?: string }) => void;
+    onSave: (values: {
+      title: string;
+      url: string;
+      faviconUrl?: string;
+      iconSize?: number;
+      fontSize?: number;
+    }) => void;
     onDelete?: () => void;
   }
 
-  let { open, dial, onClose, onSave, onDelete }: Props = $props();
+  let {
+    open,
+    dial,
+    globalIconSize,
+    globalFontSize,
+    onClose,
+    onSave,
+    onDelete,
+  }: Props = $props();
 
   let title = $state('');
   let url = $state('');
   let faviconUrl = $state('');
+  let iconSizeOverride = $state<number | null>(null);
+  let fontSizeOverride = $state<number | null>(null);
   let error = $state('');
   let titleStatus = $state('');
   let fetchingTitle = $state(false);
   let fetchSeq = 0;
+
+  const effectiveIconSize = $derived(iconSizeOverride ?? globalIconSize);
+  const effectiveFontSize = $derived(fontSizeOverride ?? globalFontSize);
 
   $effect(() => {
     if (open) {
       title = dial?.title ?? '';
       url = dial?.url ?? 'https://';
       faviconUrl = dial?.faviconUrl ?? '';
+      iconSizeOverride = dial?.iconSize ?? null;
+      fontSizeOverride = dial?.fontSize ?? null;
       error = '';
       titleStatus = '';
       fetchingTitle = false;
@@ -120,6 +143,8 @@
         title: trimmedTitle,
         url: parsed.toString(),
         faviconUrl: faviconUrl.trim() || undefined,
+        iconSize: iconSizeOverride ?? undefined,
+        fontSize: fontSizeOverride ?? undefined,
       });
     } catch {
       error = 'Enter a valid URL (including https://).';
@@ -189,7 +214,7 @@
         {/if}
       </div>
 
-      <label class="mb-4 block text-sm">
+      <label class="mb-3 block text-sm">
         <span class="mb-1 block text-[var(--text-muted)]"
           >Favicon URL (optional)</span
         >
@@ -201,6 +226,80 @@
           placeholder="Auto from site if empty"
         />
       </label>
+
+      <div class="mb-3 block text-sm">
+        <div class="mb-1 flex items-center justify-between gap-2">
+          <span class="text-[var(--text-muted)]">
+            Icon size
+            <span class="ml-1 text-[var(--text-muted)]">
+              {effectiveIconSize}px{iconSizeOverride == null
+                ? ' (global)'
+                : ''}
+            </span>
+          </span>
+          {#if iconSizeOverride != null}
+            <button
+              type="button"
+              class="rounded px-2 py-0.5 text-xs"
+              style:border="1px solid var(--dial-border)"
+              style:color="var(--accent)"
+              onclick={() => (iconSizeOverride = null)}
+            >
+              Use global
+            </button>
+          {/if}
+        </div>
+        <input
+          type="range"
+          min="16"
+          max="64"
+          step="1"
+          value={effectiveIconSize}
+          class="w-full"
+          oninput={(e) => {
+            iconSizeOverride = Number(
+              (e.currentTarget as HTMLInputElement).value,
+            );
+          }}
+        />
+      </div>
+
+      <div class="mb-4 block text-sm">
+        <div class="mb-1 flex items-center justify-between gap-2">
+          <span class="text-[var(--text-muted)]">
+            Font size
+            <span class="ml-1 text-[var(--text-muted)]">
+              {effectiveFontSize}px{fontSizeOverride == null
+                ? ' (global)'
+                : ''}
+            </span>
+          </span>
+          {#if fontSizeOverride != null}
+            <button
+              type="button"
+              class="rounded px-2 py-0.5 text-xs"
+              style:border="1px solid var(--dial-border)"
+              style:color="var(--accent)"
+              onclick={() => (fontSizeOverride = null)}
+            >
+              Use global
+            </button>
+          {/if}
+        </div>
+        <input
+          type="range"
+          min="10"
+          max="24"
+          step="1"
+          value={effectiveFontSize}
+          class="w-full"
+          oninput={(e) => {
+            fontSizeOverride = Number(
+              (e.currentTarget as HTMLInputElement).value,
+            );
+          }}
+        />
+      </div>
 
       {#if error}
         <p class="mb-3 text-sm" style:color="var(--danger)">{error}</p>
