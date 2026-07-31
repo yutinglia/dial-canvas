@@ -49,6 +49,7 @@ const FALLBACKS: Record<string, string> = {
   backgroundColor: 'Background color',
   backgroundImage: 'Wallpaper image URL',
   backgroundFit: 'Wallpaper fit',
+  backgroundOpacity: 'Wallpaper opacity',
   backgroundSource: 'Background',
   backgroundSourceColor: 'Color',
   backgroundSourceUrl: 'URL',

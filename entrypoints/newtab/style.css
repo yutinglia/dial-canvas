@@ -5,6 +5,7 @@
   --canvas-bg-image: none;
   --canvas-bg-size: cover;
   --canvas-bg-repeat: no-repeat;
+  --canvas-bg-opacity: 1;
   --dial-bg: rgba(20, 22, 28, 0.72);
   --dial-bg-hover: rgba(20, 22, 28, 0.85);
   --dial-border: rgba(255, 255, 255, 0.12);

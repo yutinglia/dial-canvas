@@ -21,6 +21,16 @@ function isAllowedWallpaperValue(value: string): boolean {
 
 const BackgroundFitSchema = z.enum(['cover', 'contain', 'tile']).default('cover');
 
+/** Wallpaper image opacity over the base canvas color (1 = fully opaque). */
+export const DEFAULT_BACKGROUND_OPACITY = 1;
+
+const BackgroundOpacitySchema = z
+  .number()
+  .finite()
+  .min(0)
+  .max(1)
+  .default(DEFAULT_BACKGROUND_OPACITY);
+
 export const BackgroundSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('color'),
@@ -32,10 +42,12 @@ export const BackgroundSchema = z.discriminatedUnion('type', [
       message: 'Wallpaper must be http(s) or a data:image URL',
     }),
     fit: BackgroundFitSchema,
+    opacity: BackgroundOpacitySchema,
   }),
   z.object({
     type: z.literal('bing'),
     fit: BackgroundFitSchema,
+    opacity: BackgroundOpacitySchema,
     cachedUrl: z
       .string()
       .min(1)

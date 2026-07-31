@@ -100,9 +100,14 @@
     return Boolean(bg.cachedUrl && bg.cachedDate === utcDateString());
   }
 
-  function applyImageBackground(imageUrl: string | undefined, fit: string) {
+  function applyImageBackground(
+    imageUrl: string | undefined,
+    fit: string,
+    opacity: number,
+  ) {
     const root = document.documentElement;
     root.style.setProperty('--canvas-bg', '#1a1d23');
+    root.style.setProperty('--canvas-bg-opacity', String(opacity));
     if (!imageUrl) {
       root.style.setProperty('--canvas-bg-image', 'none');
       root.style.setProperty('--canvas-bg-size', 'auto');
@@ -133,13 +138,14 @@
       root.style.setProperty('--canvas-bg-image', 'none');
       root.style.setProperty('--canvas-bg-size', 'auto');
       root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
+      root.style.setProperty('--canvas-bg-opacity', '1');
       return;
     }
     if (bg.type === 'bing') {
-      applyImageBackground(bg.cachedUrl, bg.fit);
+      applyImageBackground(bg.cachedUrl, bg.fit, bg.opacity);
       return;
     }
-    applyImageBackground(bg.value, bg.fit);
+    applyImageBackground(bg.value, bg.fit, bg.opacity);
   }
 
   async function ensureHostPermissionForBing(): Promise<boolean> {
@@ -198,6 +204,7 @@
             background: {
               type: 'bing',
               fit: current.fit,
+              opacity: current.opacity,
               cachedUrl: result.url,
               cachedDate: result.date,
             },
@@ -417,11 +424,12 @@
       store.settings.background.type === 'bing'
         ? store.settings.background
         : null;
-    const fit =
-      existing?.fit ??
-      (store.settings.background.type === 'image'
-        ? store.settings.background.fit
-        : 'cover');
+    const imageBg =
+      store.settings.background.type === 'image'
+        ? store.settings.background
+        : null;
+    const fit = existing?.fit ?? imageBg?.fit ?? 'cover';
+    const opacity = existing?.opacity ?? imageBg?.opacity ?? 1;
     const next: Store = {
       ...store,
       settings: {
@@ -429,6 +437,7 @@
         background: {
           type: 'bing',
           fit,
+          opacity,
           ...(existing?.cachedUrl
             ? {
                 cachedUrl: existing.cachedUrl,
@@ -726,7 +735,7 @@
     }
   }
 
-  function canvasBackgroundStyle(): string {
+  function canvasBackgroundColor(): string {
     if (!store) return 'var(--canvas-bg)';
     const bg = store.settings.background;
     if (bg.type === 'color') return bg.value;
@@ -737,12 +746,17 @@
 {#if store}
   <div
     class="relative h-full w-full"
-    style:background={canvasBackgroundStyle()}
-    style:background-image="var(--canvas-bg-image)"
-    style:background-size="var(--canvas-bg-size, cover)"
-    style:background-repeat="var(--canvas-bg-repeat, no-repeat)"
-    style:background-position="center"
+    style:background-color={canvasBackgroundColor()}
   >
+    <div
+      class="pointer-events-none absolute inset-0 z-0"
+      aria-hidden="true"
+      style:background-image="var(--canvas-bg-image)"
+      style:background-size="var(--canvas-bg-size, cover)"
+      style:background-repeat="var(--canvas-bg-repeat, no-repeat)"
+      style:background-position="center"
+      style:opacity="var(--canvas-bg-opacity, 1)"
+    ></div>
     <EditToolbar
       {editMode}
       {showEditHint}

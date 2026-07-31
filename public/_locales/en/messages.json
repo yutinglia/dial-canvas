@@ -153,6 +153,9 @@
   "backgroundFit": {
     "message": "Wallpaper fit"
   },
+  "backgroundOpacity": {
+    "message": "Wallpaper opacity"
+  },
   "backgroundSource": {
     "message": "Background"
   },

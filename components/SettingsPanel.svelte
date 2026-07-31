@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Background, Settings } from '../lib/schemas/settings';
+  import { DEFAULT_BACKGROUND_OPACITY } from '../lib/schemas/settings';
   import { fileToWallpaperDataUrl } from '../lib/dials/wallpaperImage';
   import { t } from '../lib/i18n';
 
@@ -48,6 +49,14 @@
     return 'cover';
   }
 
+  function currentOpacity(): number {
+    const bg = settings.background;
+    if (bg.type === 'image' || bg.type === 'bing') return bg.opacity;
+    return DEFAULT_BACKGROUND_OPACITY;
+  }
+
+  const opacityPercent = $derived(Math.round(currentOpacity() * 100));
+
   function deriveSource(bg: Background): WallpaperSource {
     if (bg.type === 'color') return 'color';
     if (bg.type === 'bing') return 'bing';
@@ -87,7 +96,12 @@
     }
     onChange(
       {
-        background: { type: 'image', value, fit: currentFit() },
+        background: {
+          type: 'image',
+          value,
+          fit: currentFit(),
+          opacity: currentOpacity(),
+        },
       },
       { immediate: true },
     );
@@ -114,6 +128,18 @@
     }
   }
 
+  function setOpacityPercent(percent: number) {
+    const bg = settings.background;
+    if (bg.type !== 'image' && bg.type !== 'bing') return;
+    const opacity = Math.min(100, Math.max(0, percent)) / 100;
+    onChange(
+      {
+        background: { ...bg, opacity } satisfies Background,
+      },
+      { immediate: true },
+    );
+  }
+
   function selectSource(next: WallpaperSource) {
     source = next;
     if (next === 'color') {
@@ -138,6 +164,7 @@
               type: 'image',
               value: existing,
               fit: currentFit(),
+              opacity: currentOpacity(),
             },
           },
           { immediate: true },
@@ -180,6 +207,7 @@
             type: 'image',
             value: result.dataUrl,
             fit: currentFit(),
+            opacity: currentOpacity(),
           },
         },
         { immediate: true },
@@ -471,7 +499,7 @@
       {/if}
 
       {#if source === 'url' || source === 'upload' || source === 'bing'}
-        <label class="mb-5 block text-sm">
+        <label class="mb-4 block text-sm">
           <span class="mb-1 block text-[var(--text-muted)]"
             >{t('backgroundFit')}</span
           >
@@ -493,6 +521,27 @@
             <option value="tile">{t('fitTile')}</option>
           </select>
         </label>
+        <div class="mb-5 block text-sm">
+          <div class="mb-1 flex items-center justify-between gap-2">
+            <span class="text-[var(--text-muted)]">
+              {t('backgroundOpacity')}
+              <span class="ml-1 text-[var(--text-muted)]">{opacityPercent}%</span>
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={opacityPercent}
+            class="w-full"
+            oninput={(e) => {
+              setOpacityPercent(
+                Number((e.currentTarget as HTMLInputElement).value),
+              );
+            }}
+          />
+        </div>
       {:else}
         <div class="mb-5"></div>
       {/if}

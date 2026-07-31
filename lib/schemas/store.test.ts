@@ -147,6 +147,7 @@ describe('SettingsSchema', () => {
       type: 'image',
       value: 'https://example.com/wall.jpg',
       fit: 'contain',
+      opacity: 1,
     });
   });
 
@@ -162,6 +163,7 @@ describe('SettingsSchema', () => {
     expect(parsed.background).toEqual({
       type: 'bing',
       fit: 'cover',
+      opacity: 1,
       cachedUrl: 'https://www.bing.com/th?id=OHR.example',
       cachedDate: '2026-08-01',
     });
@@ -171,7 +173,53 @@ describe('SettingsSchema', () => {
     const parsed = SettingsSchema.parse({
       background: { type: 'bing' },
     });
-    expect(parsed.background).toEqual({ type: 'bing', fit: 'cover' });
+    expect(parsed.background).toEqual({
+      type: 'bing',
+      fit: 'cover',
+      opacity: 1,
+    });
+  });
+
+  it('accepts wallpaper opacity for image and bing', () => {
+    const image = SettingsSchema.parse({
+      background: {
+        type: 'image',
+        value: 'https://example.com/wall.jpg',
+        fit: 'cover',
+        opacity: 0.4,
+      },
+    });
+    expect(image.background).toMatchObject({ type: 'image', opacity: 0.4 });
+
+    const bing = SettingsSchema.parse({
+      background: {
+        type: 'bing',
+        fit: 'tile',
+        opacity: 0,
+      },
+    });
+    expect(bing.background).toMatchObject({ type: 'bing', opacity: 0 });
+  });
+
+  it('rejects invalid wallpaper opacity', () => {
+    expect(
+      SettingsSchema.safeParse({
+        background: {
+          type: 'image',
+          value: 'https://example.com/wall.jpg',
+          fit: 'cover',
+          opacity: 1.5,
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      SettingsSchema.safeParse({
+        background: {
+          type: 'bing',
+          opacity: -0.1,
+        },
+      }).success,
+    ).toBe(false);
   });
 });
 
