@@ -1,92 +1,84 @@
 # My Speed Dial
 
-A browser extension that replaces the new tab / home page with a customizable speed dial.
+A Firefox-first browser extension that replaces the new tab page with a free-form, editable speed dial canvas.
 
-**Firefox-first.** Also targets Chrome, Edge, and other Chromium browsers via WXT/MV3, but those platforms may not be regularly tested.
+Also targets Chrome / Edge via WXT/MV3 (best-effort; Firefox is the primary test browser).
 
 ## Features
 
-- Custom speed dial tiles for quick access to favorite sites
-- Configurable layout and appearance
-- Local storage for dials and settings (sync backup planned later)
+- Free-form dials with absolute `x/y/w/h` placement
+- Edit mode: drag, resize, pixel-grid snap (default 16px), visible guides
+- No-overlap drops (reverts to last valid rect)
+- Add / edit / delete dials
+- Settings: grid size, snap on/off, solid background color
+- Local persistence via `browser.storage.local`
 
 ## Tech stack
 
 | Layer | Choice | Notes |
 | --- | --- | --- |
-| Framework | [WXT](https://wxt.dev) | Vite-based WebExtension tooling; Firefox-first (`web-ext`), Chromium builds supported |
-| Manifest | Manifest V3 | Current WebExtensions standard |
-| Language | TypeScript **6.x** | Pin to latest 6.x; see [TypeScript policy](#typescript-policy) |
-| UI | [Svelte](https://svelte.dev) 5 | New tab / options UI |
-| Styling | [Tailwind CSS](https://tailwindcss.com) 4 | Via `@tailwindcss/vite` |
-| Validation | [Zod](https://zod.dev) 4 | Schemas for dials, settings, import/export |
-| Persistence | `browser.storage.local` | Primary store; sync backup may be added later |
-
-Use the **latest** compatible releases when installing (current targets as of setup):
-
-| Package | Target |
-| --- | --- |
-| `wxt` | `^0.21.2` |
-| `@wxt-dev/module-svelte` | `^2.0.5` |
-| `typescript` | `~6.0.3` (6.x only) |
-| `svelte` | `^5.56.8` |
-| `tailwindcss` / `@tailwindcss/vite` | `^4.3.3` |
-| `zod` | `^4.4.3` |
+| Framework | [WXT](https://wxt.dev) `^0.21.2` | Vite-based WebExtension tooling |
+| Manifest | Manifest V3 | Firefox-first (`web-ext`) |
+| Language | TypeScript **~6.0.x** | Do not adopt TypeScript 7 yet |
+| UI | Svelte 5 | New tab + thin options page |
+| Styling | Tailwind CSS 4 | Via `@tailwindcss/vite` |
+| Validation | Zod 4 | Dials, settings, root store |
+| Persistence | `browser.storage.local` | Single `store` key |
 
 ### TypeScript policy
 
-- **Use TypeScript 6** (latest `6.x` patch).
-- **Do not adopt TypeScript 7 yet** — too new; breaks too much of the toolchain.
-- Keep watching ecosystem readiness (WXT, Svelte, Vite, Tailwind, Zod, `@types/*`). Move to 7 when the stack is stable with it.
-
-### Storage
-
-- **Now:** `browser.storage.local` for dials and settings.
-- **Later:** optional sync / backup path (e.g. `browser.storage.sync` or export/import) without changing the local-first model.
+- Use TypeScript 6 (latest 6.x patch).
+- Do not adopt TypeScript 7 until the WXT / Svelte / Vite toolchain is ready.
 
 ## Development
 
 ### Prerequisites
 
 - Node.js (current LTS)
-- [Firefox](https://www.mozilla.org/firefox/) (recent stable) — primary test browser
-- Chrome / Edge / Chromium optional (builds may work; not guaranteed tested)
+- Firefox (recent stable) — primary
 
-### Scripts (planned)
+### Scripts
 
 ```bash
 npm install
-npm run dev          # WXT + Firefox (web-ext) — default
-npm run build        # production build (Firefox / Chromium targets via WXT)
-npm run zip          # package for distribution
+npm run dev           # WXT + Firefox (web-ext)
+npm run build         # production build (Firefox MV3)
+npm run zip           # package for distribution
+npm run dev:chrome    # Chromium (best-effort)
+npm run build:chrome
+npm run check         # svelte-check
+npm test              # Vitest unit tests (once)
+npm run test:watch    # Vitest watch mode
 ```
 
-### Load manually (temporary)
+Unit tests live next to pure modules under `lib/**/*.test.ts` (layout math, Zod/store parsing). Vitest is wired via `wxt/testing/vitest-plugin` so WXT aliases and `browser` polyfills work without a real browser.
 
-**Firefox (primary):**
+### Load temporarily in Firefox
 
-1. Open `about:debugging`
-2. Click **This Firefox**
-3. Click **Load Temporary Add-on…**
-4. Select the built extension’s `manifest.json`
+1. `npm run build`
+2. Open `about:debugging` → **This Firefox**
+3. **Load Temporary Add-on…** → select `.output/firefox-mv3/manifest.json`
 
-**Chromium (untested / best-effort):** use `chrome://extensions` → Developer mode → Load unpacked → select the build output folder.
+Or use `npm run dev`, which launches Firefox with the extension loaded via web-ext.
 
-### Project layout (planned)
+## Architecture
 
 ```
-my_speed_dial_ext/
-├── entrypoints/
-│   ├── newtab/          # chrome_url_overrides.newtab
-│   ├── background.ts
-│   └── options/         # optional settings UI
-├── lib/                 # shared utils, Zod schemas, storage helpers
-├── assets/
-├── public/icons/
-├── wxt.config.ts
-├── package.json
-└── README.md
+entrypoints/
+  newtab/          # chrome_url_overrides.newtab (primary UI)
+  options/         # thin shell; settings live on new tab
+  background.ts    # minimal MV3 background
+components/        # DialCanvas, DialCell, GridOverlay, toolbar, modals
+lib/
+  schemas/         # Zod: dial, settings, store
+  storage/         # repository + migrate stub
+  layout/          # pure snap / collision / resolveDrop / placement
+  dials/           # favicon helper + seed dials
 ```
+
+- **Layout math** is DOM-free (`lib/layout`) so snap and no-overlap stay testable.
+- **Storage** validates every read with Zod; invalid dials are dropped; missing store seeds defaults.
+- **UI** owns edit-mode pointer interaction and debounced saves (~200ms during drag, flush on drop).
 
 ## License
 
