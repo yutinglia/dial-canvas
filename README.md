@@ -7,7 +7,9 @@ Also targets Chrome / Edge via WXT/MV3 (best-effort; Firefox is the primary test
 ## Features
 
 - Free-form dials with absolute `x/y/w/h` placement
-- Edit mode: drag, resize, pixel-grid snap (default 16px), visible guides
+- Customizable dial titles (auto-fetched from the page URL, always editable)
+- Edit mode: drag, resize; optional snap-to-grid (off by default for free-pixel move)
+- Grid guides only when snap is enabled
 - No-overlap drops (reverts to last valid rect)
 - Add / edit / delete dials
 - Settings: grid size, snap on/off, solid background color

@@ -17,6 +17,7 @@
     editMode: boolean;
     selected?: boolean;
     preview?: boolean;
+    dragging?: boolean;
     onNavigate: (dial: Dial) => void;
     onEdit: (dial: Dial) => void;
     onMoveStart: (dial: Dial, event: PointerEvent) => void;
@@ -32,6 +33,7 @@
     editMode,
     selected = false,
     preview = false,
+    dragging = false,
     onNavigate,
     onEdit,
     onMoveStart,
@@ -39,6 +41,10 @@
   }: Props = $props();
 
   const favicon = $derived(resolveFaviconUrl(dial.url, dial.faviconUrl));
+
+  const cursor = $derived(
+    !editMode ? 'pointer' : dragging ? 'grabbing' : 'grab',
+  );
 
   const handles: ResizeHandle[] = [
     'n',
@@ -80,6 +86,7 @@
   style:box-shadow={selected && editMode
     ? '0 0 0 1px var(--accent)'
     : 'none'}
+  style:cursor={cursor}
   role="link"
   tabindex="0"
   onpointerdown={(e) => {
@@ -108,20 +115,22 @@
   }}
 >
   <div
-    class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-3 text-center"
+    class="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 p-2 text-center"
   >
     {#if favicon}
       <img
         src={favicon}
         alt=""
-        class="h-8 w-8 rounded-sm object-contain"
+        class="h-8 max-h-[40%] min-h-0 w-8 shrink rounded-sm object-contain"
         loading="lazy"
         onerror={(e) => {
           (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
         }}
       />
     {/if}
-    <span class="line-clamp-2 text-sm leading-snug text-[var(--dial-title)]">
+    <span
+      class="shrink-0 line-clamp-2 text-sm leading-snug text-[var(--dial-title)]"
+    >
       {dial.title}
     </span>
   </div>
@@ -132,6 +141,7 @@
       class="absolute top-1.5 right-1.5 z-20 rounded px-1.5 py-0.5 text-xs opacity-0 transition-opacity group-hover:opacity-100"
       style:background="var(--toolbar-bg)"
       style:border="1px solid var(--dial-border)"
+      style:cursor="pointer"
       title="Edit dial"
       onclick={(e) => {
         e.stopPropagation();

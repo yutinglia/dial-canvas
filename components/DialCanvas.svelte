@@ -258,9 +258,13 @@
   style:background="var(--canvas-bg)"
   style:min-width="{settings.canvasMinWidth}px"
   style:min-height="{settings.canvasMinHeight}px"
+  style:cursor={interaction?.kind === 'move' ? 'grabbing' : undefined}
   role="presentation"
 >
-  <GridOverlay gridSize={settings.gridSize} visible={editMode} />
+  <GridOverlay
+    gridSize={settings.gridSize}
+    visible={editMode && settings.snapEnabled}
+  />
 
   {#each dials as dial (dial.id)}
     {@const rect = displayRect(dial)}
@@ -269,6 +273,7 @@
       {editMode}
       selected={selectedId === dial.id}
       preview={Boolean(previewById[dial.id])}
+      dragging={interaction?.kind === 'move' && interaction.id === dial.id}
       {onNavigate}
       onEdit={onEditDial}
       {onMoveStart}

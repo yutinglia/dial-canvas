@@ -12,6 +12,7 @@ export default defineConfig({
     name: 'My Speed Dial',
     description: 'A customizable free-form speed dial for your new tab page.',
     permissions: ['storage'],
+    host_permissions: ['http://*/*', 'https://*/*'],
     icons: {
       16: 'icons/icon-16.png',
       32: 'icons/icon-32.png',

@@ -13,7 +13,6 @@
   class="pointer-events-auto absolute top-0 right-0 left-0 z-30 flex items-center justify-between gap-3 px-4 py-3"
 >
   <div class="flex items-center gap-2">
-    <span class="text-sm tracking-wide text-[var(--text-muted)]">Speed Dial</span>
     {#if editMode}
       <span
         class="rounded px-2 py-0.5 text-xs font-medium"

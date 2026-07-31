@@ -1,10 +1,10 @@
 import { createId } from '../id';
+import { defaultDialSize } from '../layout/placement';
 import type { Dial } from '../schemas/dial';
 
 /** First-run sample dials on a 16px grid. */
 export function createSeedDials(gridSize = 16): Dial[] {
-  const w = Math.max(64, gridSize * 4);
-  const h = Math.max(64, gridSize * 3);
+  const { width: w, height: h } = defaultDialSize(gridSize);
   const gap = gridSize;
 
   const seeds: Omit<Dial, 'id'>[] = [

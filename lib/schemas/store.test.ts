@@ -37,7 +37,7 @@ describe('SettingsSchema', () => {
   it('fills defaults for an empty object', () => {
     expect(SettingsSchema.parse({})).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.gridSize).toBe(16);
-    expect(DEFAULT_SETTINGS.snapEnabled).toBe(true);
+    expect(DEFAULT_SETTINGS.snapEnabled).toBe(false);
   });
 
   it('rejects out-of-range gridSize', () => {

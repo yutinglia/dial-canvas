@@ -57,7 +57,7 @@
       </label>
 
       <label class="mb-4 flex items-center justify-between gap-3 text-sm">
-        <span class="text-[var(--text-muted)]">Snap to grid</span>
+        <span class="text-[var(--text-muted)]">Snap to grid (adsorption)</span>
         <input
           type="checkbox"
           checked={settings.snapEnabled}

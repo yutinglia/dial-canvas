@@ -7,7 +7,7 @@ export const BackgroundSchema = z.object({
 
 export const SettingsSchema = z.object({
   gridSize: z.number().int().min(4).max(64).default(16),
-  snapEnabled: z.boolean().default(true),
+  snapEnabled: z.boolean().default(false),
   snapThreshold: z.number().finite().positive().default(8),
   canvasMinWidth: z.number().finite().positive().default(1200),
   canvasMinHeight: z.number().finite().positive().default(800),

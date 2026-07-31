@@ -113,28 +113,29 @@ describe('resolveDrop', () => {
 });
 
 describe('defaultDialSize', () => {
-  it('uses 4×3 grid cells when above the 64px floor', () => {
-    expect(defaultDialSize(24)).toEqual({ width: 96, height: 72 });
-    expect(defaultDialSize(32)).toEqual({ width: 128, height: 96 });
+  it('uses 6×5 grid cells when above the 64px floor', () => {
+    expect(defaultDialSize(16)).toEqual({ width: 96, height: 80 });
+    expect(defaultDialSize(24)).toEqual({ width: 144, height: 120 });
+    expect(defaultDialSize(32)).toEqual({ width: 192, height: 160 });
   });
 
   it('floors width and height at 64px for small grids', () => {
-    expect(defaultDialSize(16)).toEqual({ width: 64, height: 64 });
     expect(defaultDialSize(8)).toEqual({ width: 64, height: 64 });
+    expect(defaultDialSize(10)).toEqual({ width: 64, height: 64 });
   });
 });
 
 describe('findFirstFreeSlot', () => {
   it('returns the top-left slot on an empty canvas', () => {
     expect(findFirstFreeSlot([], 16, canvas)).toEqual(
-      rect(0, 0, 64, 64),
+      rect(0, 0, 96, 80),
     );
   });
 
   it('skips occupied slots and finds the next free one', () => {
-    const occupied = [rect(0, 0, 64, 64)];
+    const occupied = [rect(0, 0, 96, 80)];
     expect(findFirstFreeSlot(occupied, 16, canvas)).toEqual(
-      rect(64, 0, 64, 64),
+      rect(96, 0, 96, 80),
     );
   });
 
