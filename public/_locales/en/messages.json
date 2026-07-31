@@ -38,6 +38,9 @@
   "searchPlaceholder": {
     "message": "Search dials…"
   },
+  "search": {
+    "message": "Search"
+  },
   "searchNoResults": {
     "message": "No dials match your search."
   },

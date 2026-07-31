@@ -5,6 +5,7 @@ import {
   defaultDialSize,
   defaultWeatherWidgetSize,
   findFirstFreeSlot,
+  findNearestFreeSlot,
   resolveDrop,
 } from './placement';
 import type { Rect } from './types';
@@ -155,5 +156,45 @@ describe('findFirstFreeSlot', () => {
     expect(findFirstFreeSlot(occupied, 16, tiny, size)).toEqual(
       rect(0, 0, 64, 64),
     );
+  });
+});
+
+describe('findNearestFreeSlot', () => {
+  const size = { width: 64, height: 64 };
+
+  it('returns the snapped preferred slot when free', () => {
+    expect(
+      findNearestFreeSlot({ x: 50, y: 34 }, [], 16, canvas, size),
+    ).toEqual(rect(48, 32, 64, 64));
+  });
+
+  it('clamps preferred coordinates into the canvas', () => {
+    expect(
+      findNearestFreeSlot({ x: 400, y: 300 }, [], 16, canvas, size),
+    ).toEqual(rect(256, 176, 64, 64));
+  });
+
+  it('expands to a nearby free ring when preferred is occupied', () => {
+    const occupied = [rect(48, 32, 64, 64)];
+    // First free Chebyshev neighbor of (48,32) that clears the 64×64 blocker.
+    expect(
+      findNearestFreeSlot({ x: 48, y: 32 }, occupied, 16, canvas, size),
+    ).toEqual(rect(112, 0, 64, 64));
+  });
+
+  it('picks an adjacent ring cell when only the preferred slot is blocked', () => {
+    const occupied = [rect(48, 32, 16, 16)];
+    // (32,16) still overlaps the blocker; next free ring cell is (64,16).
+    expect(
+      findNearestFreeSlot({ x: 48, y: 32 }, occupied, 16, canvas, size),
+    ).toEqual(rect(64, 16, 64, 64));
+  });
+
+  it('falls back to findFirstFreeSlot when the canvas is full', () => {
+    const tiny = { width: 64, height: 64 };
+    const occupied = [rect(0, 0, 64, 64)];
+    expect(
+      findNearestFreeSlot({ x: 0, y: 0 }, occupied, 16, tiny, size),
+    ).toEqual(rect(0, 0, 64, 64));
   });
 });

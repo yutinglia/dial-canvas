@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Widget } from '../lib/schemas/widget';
   import { t } from '../lib/i18n';
+  import { closeAndRetargetContextMenu } from '../lib/ui/retargetContextMenu';
 
   interface Props {
     widget: Widget | null;
@@ -33,6 +34,8 @@
     role="presentation"
     onclick={onClose}
     onkeydown={onKeydown}
+    oncontextmenu={(e) =>
+      closeAndRetargetContextMenu(e, e.currentTarget as HTMLElement, onClose)}
   >
     <div
       class="absolute min-w-[10rem] overflow-hidden rounded-md py-1 shadow-lg"
@@ -44,6 +47,10 @@
       tabindex="-1"
       aria-label="Widget actions"
       onclick={(e) => e.stopPropagation()}
+      oncontextmenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
       onkeydown={(e) => e.stopPropagation()}
     >
       <button

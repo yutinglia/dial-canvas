@@ -40,6 +40,10 @@
     onCanvasSizeChange?: (size: Size) => void;
     onContextMenu: (dial: Dial, event: MouseEvent) => void;
     onWidgetContextMenu?: (widget: Widget, event: MouseEvent) => void;
+    onCanvasContextMenu?: (
+      event: MouseEvent,
+      point: { x: number; y: number },
+    ) => void;
     onAddDial?: () => void;
     onAddWidget?: () => void;
   }
@@ -58,6 +62,7 @@
     onCanvasSizeChange,
     onContextMenu,
     onWidgetContextMenu,
+    onCanvasContextMenu,
     onAddDial,
     onAddWidget,
   }: Props = $props();
@@ -344,6 +349,21 @@
   $effect(() => {
     return () => detachWindowListeners();
   });
+
+  function handleCanvasContextMenu(event: MouseEvent) {
+    if (!onCanvasContextMenu || !canvasEl) return;
+    const el = event.target as HTMLElement | null;
+    if (!el || !canvasEl.contains(el)) return;
+    // Leave dial/widget menus alone (they stopPropagation); skip empty-state buttons.
+    if (el.closest('button, a, input, textarea, select')) return;
+
+    event.preventDefault();
+    const bounds = canvasEl.getBoundingClientRect();
+    onCanvasContextMenu(event, {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    });
+  }
 </script>
 
 <div
@@ -353,6 +373,7 @@
   style:min-height="{settings.canvasMinHeight}px"
   style:cursor={interaction?.kind === 'move' ? 'grabbing' : undefined}
   role="presentation"
+  oncontextmenu={handleCanvasContextMenu}
 >
   <GridOverlay
     gridSize={settings.gridSize}

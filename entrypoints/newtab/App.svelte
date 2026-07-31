@@ -6,6 +6,7 @@
   import SettingsPanel from '../../components/SettingsPanel.svelte';
   import DialContextMenu from '../../components/DialContextMenu.svelte';
   import WidgetContextMenu from '../../components/WidgetContextMenu.svelte';
+  import CanvasContextMenu from '../../components/CanvasContextMenu.svelte';
   import WidgetPickerModal from '../../components/WidgetPickerModal.svelte';
   import WidgetEditorModal from '../../components/WidgetEditorModal.svelte';
   import DialSearchOverlay from '../../components/DialSearchOverlay.svelte';
@@ -20,6 +21,7 @@
     defaultWallpaperInfoWidgetSize,
     defaultWeatherWidgetSize,
     findFirstFreeSlot,
+    findNearestFreeSlot,
     type Rect,
     type Size,
   } from '../../lib/layout';
@@ -92,6 +94,13 @@
     x: number;
     y: number;
   } | null>(null);
+  let canvasContextMenu = $state<{
+    x: number;
+    y: number;
+    canvasX: number;
+    canvasY: number;
+  } | null>(null);
+  let pendingPlacement = $state<{ x: number; y: number } | null>(null);
   let bingFetchInFlight = false;
 
   const activeDials = $derived(store ? getActiveDials(store) : []);
@@ -357,6 +366,10 @@
           widgetContextMenu = null;
           return;
         }
+        if (canvasContextMenu) {
+          canvasContextMenu = null;
+          return;
+        }
         if (searchOpen) {
           searchOpen = false;
           searchQuery = '';
@@ -365,10 +378,12 @@
         if (editorOpen) {
           editorOpen = false;
           editingDial = null;
+          pendingPlacement = null;
           return;
         }
         if (widgetPickerOpen) {
           widgetPickerOpen = false;
+          pendingPlacement = null;
           return;
         }
         if (widgetEditorOpen) {
@@ -637,8 +652,16 @@
   }
 
   function openAddDial() {
+    pendingPlacement = null;
     editingDial = null;
     editorOpen = true;
+  }
+
+  function openAddDialAt(point: { x: number; y: number }) {
+    if (!editMode) toggleEdit();
+    editingDial = null;
+    editorOpen = true;
+    pendingPlacement = point;
   }
 
   function openEditDial(dial: Dial) {
@@ -649,14 +672,23 @@
   function closeEditor() {
     editorOpen = false;
     editingDial = null;
+    pendingPlacement = null;
   }
 
   function openAddWidget() {
+    pendingPlacement = null;
     widgetPickerOpen = true;
+  }
+
+  function openAddWidgetAt(point: { x: number; y: number }) {
+    if (!editMode) toggleEdit();
+    widgetPickerOpen = true;
+    pendingPlacement = point;
   }
 
   function closeWidgetPicker() {
     widgetPickerOpen = false;
+    pendingPlacement = null;
   }
 
   function openEditWidget(widget: Widget) {
@@ -685,12 +717,23 @@
       wallpaperInfo: defaultWallpaperInfoWidgetSize(grid),
     };
     const size = sizeByType[type];
-    const slot = findFirstFreeSlot(
-      occupiedRects(dials, widgets),
-      store.settings.gridSize,
-      canvasSize,
-      size,
-    );
+    const occupied = occupiedRects(dials, widgets);
+    const preferred = pendingPlacement;
+    pendingPlacement = null;
+    const slot = preferred
+      ? findNearestFreeSlot(
+          preferred,
+          occupied,
+          store.settings.gridSize,
+          canvasSize,
+          size,
+        )
+      : findFirstFreeSlot(
+          occupied,
+          store.settings.gridSize,
+          canvasSize,
+          size,
+        );
 
     const base = {
       id: createId(),
@@ -795,7 +838,9 @@
 
   function onWidgetContextMenu(widget: Widget, event: MouseEvent) {
     event.preventDefault();
+    event.stopPropagation();
     contextMenu = null;
+    canvasContextMenu = null;
     const pad = 8;
     const menuW = 160;
     const menuH = editMode ? 100 : 50;
@@ -810,13 +855,35 @@
 
   function onDialContextMenu(dial: Dial, event: MouseEvent) {
     event.preventDefault();
+    event.stopPropagation();
     widgetContextMenu = null;
+    canvasContextMenu = null;
     const pad = 8;
     const menuW = 160;
     const menuH = editMode ? 160 : 80;
     const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
     const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
     contextMenu = { dial, x: Math.max(pad, x), y: Math.max(pad, y) };
+  }
+
+  function onCanvasContextMenu(
+    event: MouseEvent,
+    point: { x: number; y: number },
+  ) {
+    event.preventDefault();
+    contextMenu = null;
+    widgetContextMenu = null;
+    const pad = 8;
+    const menuW = 160;
+    const menuH = 200;
+    const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
+    const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
+    canvasContextMenu = {
+      x: Math.max(pad, x),
+      y: Math.max(pad, y),
+      canvasX: point.x,
+      canvasY: point.y,
+    };
   }
 
   async function saveDial(values: {
@@ -865,11 +932,21 @@
       });
       await persist(withActiveDials(store, nextDials), true);
     } else {
-      const slot = findFirstFreeSlot(
-        occupiedRects(dials, getActiveWidgets(store)),
-        store.settings.gridSize,
-        canvasSize,
-      );
+      const occupied = occupiedRects(dials, getActiveWidgets(store));
+      const preferred = pendingPlacement;
+      pendingPlacement = null;
+      const slot = preferred
+        ? findNearestFreeSlot(
+            preferred,
+            occupied,
+            store.settings.gridSize,
+            canvasSize,
+          )
+        : findFirstFreeSlot(
+            occupied,
+            store.settings.gridSize,
+            canvasSize,
+          );
       const dial: Dial = {
         id: createId(),
         title: values.title,
@@ -1125,6 +1202,7 @@
         onCanvasSizeChange={(size) => (canvasSize = size)}
         onContextMenu={onDialContextMenu}
         onWidgetContextMenu={onWidgetContextMenu}
+        onCanvasContextMenu={onCanvasContextMenu}
         onAddDial={openAddDial}
         onAddWidget={openAddWidget}
       />
@@ -1200,6 +1278,31 @@
       onClose={() => (widgetContextMenu = null)}
       onEdit={openEditWidget}
       onDelete={deleteWidgetById}
+    />
+
+    <CanvasContextMenu
+      open={canvasContextMenu !== null}
+      x={canvasContextMenu?.x ?? 0}
+      y={canvasContextMenu?.y ?? 0}
+      {editMode}
+      onClose={() => (canvasContextMenu = null)}
+      onToggleEdit={toggleEdit}
+      onAddDial={() => {
+        if (!canvasContextMenu) return;
+        openAddDialAt({
+          x: canvasContextMenu.canvasX,
+          y: canvasContextMenu.canvasY,
+        });
+      }}
+      onAddWidget={() => {
+        if (!canvasContextMenu) return;
+        openAddWidgetAt({
+          x: canvasContextMenu.canvasX,
+          y: canvasContextMenu.canvasY,
+        });
+      }}
+      onOpenSearch={() => (searchOpen = true)}
+      onOpenSettings={() => (settingsOpen = true)}
     />
 
     {#if toastMessage}

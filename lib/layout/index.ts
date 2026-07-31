@@ -13,5 +13,6 @@ export {
   defaultHolidaysWidgetSize,
   defaultWallpaperInfoWidgetSize,
   findFirstFreeSlot,
+  findNearestFreeSlot,
   type DropSettings,
 } from './placement';

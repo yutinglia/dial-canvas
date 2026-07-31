@@ -82,7 +82,7 @@
       onclick={onOpenSearch}
       title={t('searchPlaceholder')}
     >
-      Search
+      {t('search')}
     </button>
     <button
       type="button"

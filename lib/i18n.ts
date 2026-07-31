@@ -41,6 +41,7 @@ const FALLBACKS: Record<string, string> = {
   emptyCanvas: 'Nothing on this page yet.',
   emptyCanvasHint: 'Click Edit, then Add dial or Add widget to get started.',
   searchPlaceholder: 'Search dials…',
+  search: 'Search',
   searchNoResults: 'No dials match your search.',
   pageHome: 'Home',
   addPage: 'Add page',

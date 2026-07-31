@@ -1,30 +1,31 @@
 <script lang="ts">
-  import type { Dial } from '../lib/schemas/dial';
   import { t } from '../lib/i18n';
   import { closeAndRetargetContextMenu } from '../lib/ui/retargetContextMenu';
 
   interface Props {
-    dial: Dial | null;
+    open: boolean;
     x: number;
     y: number;
     editMode: boolean;
     onClose: () => void;
-    onEdit: (dial: Dial) => void;
-    onDelete: (dial: Dial) => void;
-    onOpen: (dial: Dial) => void;
-    onCopyUrl: (dial: Dial) => void;
+    onToggleEdit: () => void;
+    onAddDial: () => void;
+    onAddWidget: () => void;
+    onOpenSearch: () => void;
+    onOpenSettings: () => void;
   }
 
   let {
-    dial,
+    open,
     x,
     y,
     editMode,
     onClose,
-    onEdit,
-    onDelete,
-    onOpen,
-    onCopyUrl,
+    onToggleEdit,
+    onAddDial,
+    onAddWidget,
+    onOpenSearch,
+    onOpenSettings,
   }: Props = $props();
 
   function onKeydown(event: KeyboardEvent) {
@@ -32,7 +33,7 @@
   }
 </script>
 
-{#if dial}
+{#if open}
   <div
     class="fixed inset-0 z-[55]"
     role="presentation"
@@ -49,7 +50,7 @@
       style:border="1px solid var(--dial-border)"
       role="menu"
       tabindex="-1"
-      aria-label="Dial actions"
+      aria-label="Canvas actions"
       onclick={(e) => e.stopPropagation()}
       oncontextmenu={(e) => {
         e.preventDefault();
@@ -62,48 +63,56 @@
         class="block w-full px-3 py-1.5 text-left text-sm hover:bg-white/5"
         role="menuitem"
         onclick={() => {
-          onOpen(dial);
+          onToggleEdit();
           onClose();
         }}
       >
-        {t('openDial')}
+        {editMode ? t('done') : t('edit')}
       </button>
       <button
         type="button"
         class="block w-full px-3 py-1.5 text-left text-sm hover:bg-white/5"
         role="menuitem"
         onclick={() => {
-          onCopyUrl(dial);
+          onAddDial();
           onClose();
         }}
       >
-        {t('copyUrl')}
+        {t('addDial')}
       </button>
-      {#if editMode}
-        <button
-          type="button"
-          class="block w-full px-3 py-1.5 text-left text-sm hover:bg-white/5"
-          role="menuitem"
-          onclick={() => {
-            onEdit(dial);
-            onClose();
-          }}
-        >
-          {t('edit')}
-        </button>
-        <button
-          type="button"
-          class="block w-full px-3 py-1.5 text-left text-sm hover:bg-white/5"
-          style:color="var(--danger)"
-          role="menuitem"
-          onclick={() => {
-            onDelete(dial);
-            onClose();
-          }}
-        >
-          {t('deleteDial')}
-        </button>
-      {/if}
+      <button
+        type="button"
+        class="block w-full px-3 py-1.5 text-left text-sm hover:bg-white/5"
+        role="menuitem"
+        onclick={() => {
+          onAddWidget();
+          onClose();
+        }}
+      >
+        {t('addWidget')}
+      </button>
+      <button
+        type="button"
+        class="block w-full px-3 py-1.5 text-left text-sm hover:bg-white/5"
+        role="menuitem"
+        onclick={() => {
+          onOpenSearch();
+          onClose();
+        }}
+      >
+        {t('search')}
+      </button>
+      <button
+        type="button"
+        class="block w-full px-3 py-1.5 text-left text-sm hover:bg-white/5"
+        role="menuitem"
+        onclick={() => {
+          onOpenSettings();
+          onClose();
+        }}
+      >
+        {t('settings')}
+      </button>
     </div>
   </div>
 {/if}

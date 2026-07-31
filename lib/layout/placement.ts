@@ -1,6 +1,6 @@
 import { hasOverlap } from './collision';
 import { snapRect } from './snap';
-import type { Rect, Size } from './types';
+import type { Point, Rect, Size } from './types';
 
 export type DropSettings = {
   gridSize: number;
@@ -147,4 +147,53 @@ export function findFirstFreeSlot(
 
   // Fallback: top-left even if overlapping (caller may still place; rare on empty-ish canvas).
   return { x: 0, y: 0, width: size.width, height: size.height };
+}
+
+/**
+ * Place near a preferred point: snap to grid, clamp, then expand in
+ * Chebyshev rings until a free slot is found (falls back to findFirstFreeSlot).
+ */
+export function findNearestFreeSlot(
+  preferred: Point,
+  others: Rect[],
+  gridSize: number,
+  canvasSize: Size,
+  size = defaultDialSize(gridSize),
+): Rect {
+  const step = Math.max(1, gridSize);
+  const start = clampRect(
+    {
+      x: Math.round(preferred.x / step) * step,
+      y: Math.round(preferred.y / step) * step,
+      width: size.width,
+      height: size.height,
+    },
+    canvasSize,
+  );
+
+  if (!hasOverlap(start, others)) return start;
+
+  const maxX = Math.max(0, canvasSize.width - size.width);
+  const maxY = Math.max(0, canvasSize.height - size.height);
+  const maxRadius = Math.ceil(Math.max(maxX, maxY) / step) + 1;
+
+  for (let r = 1; r <= maxRadius; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = start.x + dx * step;
+        const y = start.y + dy * step;
+        if (x < 0 || y < 0 || x > maxX || y > maxY) continue;
+        const candidate: Rect = {
+          x,
+          y,
+          width: size.width,
+          height: size.height,
+        };
+        if (!hasOverlap(candidate, others)) return candidate;
+      }
+    }
+  }
+
+  return findFirstFreeSlot(others, gridSize, canvasSize, size);
 }

@@ -38,6 +38,9 @@
   "searchPlaceholder": {
     "message": "搜尋撥號…"
   },
+  "search": {
+    "message": "搜尋"
+  },
   "searchNoResults": {
     "message": "沒有符合的撥號。"
   },
