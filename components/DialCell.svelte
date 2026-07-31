@@ -52,6 +52,9 @@
     !editMode ? 'pointer' : dragging ? 'grabbing' : 'grab',
   );
 
+  /** Armed while primary button is held on this cell; cleared on leave/cancel. */
+  let pressArmed = $state(false);
+
   const handles: ResizeHandle[] = [
     'n',
     's',
@@ -97,15 +100,29 @@
   role="link"
   tabindex="0"
   onpointerdown={(e) => {
-    if (!editMode) return;
+    if (!editMode) {
+      if (e.button === 0) pressArmed = true;
+      return;
+    }
     if ((e.target as HTMLElement).closest('[data-handle]')) return;
     onMoveStart(dial, e);
+  }}
+  onpointerleave={() => {
+    pressArmed = false;
+  }}
+  onpointercancel={() => {
+    pressArmed = false;
   }}
   onclick={(e) => {
     if (editMode) {
       e.preventDefault();
       return;
     }
+    if (!pressArmed) {
+      e.preventDefault();
+      return;
+    }
+    pressArmed = false;
     onNavigate(dial);
   }}
   ondblclick={(e) => {
