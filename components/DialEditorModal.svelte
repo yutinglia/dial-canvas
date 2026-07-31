@@ -1,7 +1,10 @@
 <script lang="ts">
   import {
+    DEFAULT_DIAL_BACKGROUND_COLOR,
+    DEFAULT_DIAL_BACKGROUND_OPACITY,
     isAllowedDialUrl,
     isAllowedFaviconUrl,
+    isDialBackgroundColor,
     normalizeDialUrl,
     type Dial,
   } from '../lib/schemas/dial';
@@ -24,6 +27,8 @@
       faviconUrl?: string;
       iconSize?: number;
       fontSize?: number;
+      backgroundColor?: string;
+      backgroundOpacity?: number;
     }) => void;
     onDelete?: () => void;
   }
@@ -43,6 +48,8 @@
   let faviconUrl = $state('');
   let iconSizeOverride = $state<number | null>(null);
   let fontSizeOverride = $state<number | null>(null);
+  let backgroundColorOverride = $state<string | null>(null);
+  let backgroundOpacityOverride = $state<number | null>(null);
   let error = $state('');
   let titleStatus = $state('');
   let fetchingTitle = $state(false);
@@ -50,6 +57,18 @@
 
   const effectiveIconSize = $derived(iconSizeOverride ?? globalIconSize);
   const effectiveFontSize = $derived(fontSizeOverride ?? globalFontSize);
+  const hasCustomBackground = $derived(
+    backgroundColorOverride != null || backgroundOpacityOverride != null,
+  );
+  const effectiveBackgroundColor = $derived(
+    backgroundColorOverride ?? DEFAULT_DIAL_BACKGROUND_COLOR,
+  );
+  const effectiveBackgroundOpacity = $derived(
+    backgroundOpacityOverride ?? DEFAULT_DIAL_BACKGROUND_OPACITY,
+  );
+  const opacityPercent = $derived(
+    Math.round(effectiveBackgroundOpacity * 100),
+  );
 
   $effect(() => {
     if (open) {
@@ -58,6 +77,8 @@
       faviconUrl = dial?.faviconUrl ?? '';
       iconSizeOverride = dial?.iconSize ?? null;
       fontSizeOverride = dial?.fontSize ?? null;
+      backgroundColorOverride = dial?.backgroundColor ?? null;
+      backgroundOpacityOverride = dial?.backgroundOpacity ?? null;
       error = '';
       titleStatus = '';
       fetchingTitle = false;
@@ -98,7 +119,10 @@
     }
   }
 
-  async function fetchTitle(opts: { overwrite: boolean; requestPermission: boolean }) {
+  async function fetchTitle(opts: {
+    overwrite: boolean;
+    requestPermission: boolean;
+  }) {
     const normalized = normalizeDialUrl(url);
     if (!normalized || !isAllowedDialUrl(normalized)) {
       titleStatus = 'Enter an http(s) or about: URL first.';
@@ -178,6 +202,32 @@
     void fetchTitle({ overwrite: false, requestPermission: false });
   }
 
+  function ensureCustomBackground() {
+    if (backgroundColorOverride == null) {
+      backgroundColorOverride = DEFAULT_DIAL_BACKGROUND_COLOR;
+    }
+    if (backgroundOpacityOverride == null) {
+      backgroundOpacityOverride = DEFAULT_DIAL_BACKGROUND_OPACITY;
+    }
+  }
+
+  function clearCustomBackground() {
+    backgroundColorOverride = null;
+    backgroundOpacityOverride = null;
+  }
+
+  function setBackgroundColor(value: string) {
+    const trimmed = value.trim();
+    if (!isDialBackgroundColor(trimmed)) return;
+    ensureCustomBackground();
+    backgroundColorOverride = trimmed.toLowerCase();
+  }
+
+  function setBackgroundOpacityPercent(percent: number) {
+    ensureCustomBackground();
+    backgroundOpacityOverride = Math.min(100, Math.max(0, percent)) / 100;
+  }
+
   function submit(event: Event) {
     event.preventDefault();
     const trimmedTitle = title.trim();
@@ -196,12 +246,21 @@
         'Favicon must be an http(s) URL or a short data:image URL.';
       return;
     }
+    if (
+      backgroundColorOverride != null &&
+      !isDialBackgroundColor(backgroundColorOverride)
+    ) {
+      error = 'Background color must be a #rrggbb hex value.';
+      return;
+    }
     onSave({
       title: trimmedTitle,
       url: normalizedUrl,
       faviconUrl: trimmedFavicon || undefined,
       iconSize: iconSizeOverride ?? undefined,
       fontSize: fontSizeOverride ?? undefined,
+      backgroundColor: backgroundColorOverride ?? undefined,
+      backgroundOpacity: backgroundOpacityOverride ?? undefined,
     });
   }
 
@@ -249,14 +308,16 @@
 
       <div class="mb-3 block text-sm">
         <div class="mb-1 flex items-center justify-between gap-2">
-          <label for="dial-title" class="text-[var(--text-muted)]">{t('title')}</label>
+          <label for="dial-title" class="text-[var(--text-muted)]">{t('title')}</label
+          >
           <button
             type="button"
             class="rounded px-2 py-0.5 text-xs transition-opacity"
             style:border="1px solid var(--dial-border)"
             style:color="var(--accent)"
             disabled={fetchingTitle}
-            onclick={() => void fetchTitle({ overwrite: true, requestPermission: true })}
+            onclick={() =>
+              void fetchTitle({ overwrite: true, requestPermission: true })}
           >
             {fetchingTitle ? t('fetching') : t('fetchTitle')}
           </button>
@@ -321,7 +382,7 @@
         />
       </div>
 
-      <div class="mb-4 block text-sm">
+      <div class="mb-3 block text-sm">
         <div class="mb-1 flex items-center justify-between gap-2">
           <span class="text-[var(--text-muted)]">
             {t('fontSize')}
@@ -353,6 +414,67 @@
           oninput={(e) => {
             fontSizeOverride = Number(
               (e.currentTarget as HTMLInputElement).value,
+            );
+          }}
+        />
+      </div>
+
+      <div class="mb-3 block text-sm">
+        <div class="mb-1 flex items-center justify-between gap-2">
+          <span class="text-[var(--text-muted)]">
+            {t('dialBackgroundColor')}
+            {#if !hasCustomBackground}
+              <span class="ml-1 text-[var(--text-muted)]">(default)</span>
+            {/if}
+          </span>
+          {#if hasCustomBackground}
+            <button
+              type="button"
+              class="rounded px-2 py-0.5 text-xs"
+              style:border="1px solid var(--dial-border)"
+              style:color="var(--accent)"
+              onclick={clearCustomBackground}
+            >
+              {t('useDefaultBackground')}
+            </button>
+          {/if}
+        </div>
+        <div class="flex items-center gap-3">
+          <input
+            type="color"
+            value={effectiveBackgroundColor}
+            oninput={(e) => {
+              setBackgroundColor((e.currentTarget as HTMLInputElement).value);
+            }}
+          />
+          <input
+            class="flex-1 rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
+            style:border-color="var(--dial-border)"
+            value={effectiveBackgroundColor}
+            onchange={(e) => {
+              setBackgroundColor((e.currentTarget as HTMLInputElement).value);
+            }}
+          />
+        </div>
+      </div>
+
+      <div class="mb-4 block text-sm">
+        <div class="mb-1 flex items-center justify-between gap-2">
+          <span class="text-[var(--text-muted)]">
+            {t('dialBackgroundOpacity')}
+            <span class="ml-1 text-[var(--text-muted)]">{opacityPercent}%</span>
+          </span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={opacityPercent}
+          class="w-full"
+          oninput={(e) => {
+            setBackgroundOpacityPercent(
+              Number((e.currentTarget as HTMLInputElement).value),
             );
           }}
         />

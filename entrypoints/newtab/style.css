@@ -5,9 +5,9 @@
   --canvas-bg-image: none;
   --canvas-bg-size: cover;
   --canvas-bg-repeat: no-repeat;
-  --dial-bg: rgba(255, 255, 255, 0.06);
-  --dial-bg-hover: rgba(255, 255, 255, 0.1);
-  --dial-border: rgba(255, 255, 255, 0.1);
+  --dial-bg: rgba(20, 22, 28, 0.72);
+  --dial-bg-hover: rgba(20, 22, 28, 0.85);
+  --dial-border: rgba(255, 255, 255, 0.12);
   --dial-title: #e8eaed;
   --toolbar-bg: rgba(20, 22, 28, 0.92);
   --accent: #6b8f71;

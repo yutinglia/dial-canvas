@@ -488,6 +488,8 @@
     faviconUrl?: string;
     iconSize?: number;
     fontSize?: number;
+    backgroundColor?: string;
+    backgroundOpacity?: number;
   }) {
     if (!store) return;
 
@@ -512,6 +514,16 @@
         else delete next.iconSize;
         if (values.fontSize !== undefined) next.fontSize = values.fontSize;
         else delete next.fontSize;
+        if (values.backgroundColor !== undefined) {
+          next.backgroundColor = values.backgroundColor;
+        } else {
+          delete next.backgroundColor;
+        }
+        if (values.backgroundOpacity !== undefined) {
+          next.backgroundOpacity = values.backgroundOpacity;
+        } else {
+          delete next.backgroundOpacity;
+        }
         return next;
       });
       await persist(withActiveDials(store, nextDials), true);
@@ -536,6 +548,12 @@
           : {}),
         ...(values.fontSize !== undefined
           ? { fontSize: values.fontSize }
+          : {}),
+        ...(values.backgroundColor !== undefined
+          ? { backgroundColor: values.backgroundColor }
+          : {}),
+        ...(values.backgroundOpacity !== undefined
+          ? { backgroundOpacity: values.backgroundOpacity }
           : {}),
         ...slot,
       };

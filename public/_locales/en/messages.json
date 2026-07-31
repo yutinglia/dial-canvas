@@ -231,6 +231,15 @@
   "fontSize": {
     "message": "Font size"
   },
+  "dialBackgroundColor": {
+    "message": "Cell background"
+  },
+  "dialBackgroundOpacity": {
+    "message": "Cell transparency"
+  },
+  "useDefaultBackground": {
+    "message": "Use default"
+  },
   "close": {
     "message": "Close"
   },

@@ -1,6 +1,9 @@
 <script lang="ts">
-  import type { Dial } from '../lib/schemas/dial';
-  import { isAllowedDialUrl } from '../lib/schemas/dial';
+  import {
+    dialBackgroundCss,
+    isAllowedDialUrl,
+    type Dial,
+  } from '../lib/schemas/dial';
   import {
     dialMonogram,
     resolveFaviconChain,
@@ -55,6 +58,9 @@
   const faviconChain = $derived(resolveFaviconChain(dial.url, dial.faviconUrl));
   const monogram = $derived(dialMonogram(dial.title));
   const canLink = $derived(isAllowedDialUrl(dial.url));
+  const customBackground = $derived(
+    dialBackgroundCss(dial.backgroundColor, dial.backgroundOpacity),
+  );
 
   let faviconIndex = $state(0);
   let showMonogram = $state(false);
@@ -162,7 +168,9 @@
     style:top="{dial.y}px"
     style:width="{dial.width}px"
     style:height="{dial.height}px"
-    style:background={preview ? 'rgba(107, 143, 113, 0.18)' : undefined}
+    style:background={preview
+      ? 'rgba(107, 143, 113, 0.18)'
+      : customBackground}
     style:border-color={preview ? 'var(--accent)' : undefined}
     style:opacity={dimmed ? 0.28 : preview ? 0.85 : 1}
     style:box-shadow={selected ? '0 0 0 1px var(--accent)' : 'none'}
@@ -223,6 +231,7 @@
     style:top="{dial.y}px"
     style:width="{dial.width}px"
     style:height="{dial.height}px"
+    style:background={customBackground}
     style:opacity={dimmed ? 0.28 : 1}
     style:cursor={cursor}
     href={dial.url}
@@ -238,6 +247,7 @@
     style:top="{dial.y}px"
     style:width="{dial.width}px"
     style:height="{dial.height}px"
+    style:background={customBackground}
     style:opacity={dimmed ? 0.28 : 1}
     style:cursor="not-allowed"
     role="presentation"

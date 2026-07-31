@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALLOWED_DIAL_PROTOCOLS,
+  DEFAULT_DIAL_BACKGROUND_COLOR,
+  DEFAULT_DIAL_BACKGROUND_OPACITY,
   MAX_FAVICON_DATA_URL_LENGTH,
+  dialBackgroundCss,
   isAllowedDialUrl,
   isAllowedFaviconUrl,
+  isDialBackgroundColor,
+  normalizeDialBackgroundColor,
+  normalizeDialBackgroundOpacity,
   normalizeDialUrl,
   normalizeFaviconUrl,
 } from './dial';
@@ -53,5 +59,42 @@ describe('favicon URL policy', () => {
     expect(normalizeFaviconUrl(' https://x.test/f.ico ')).toBe(
       'https://x.test/f.ico',
     );
+  });
+});
+
+describe('dial background color / opacity', () => {
+  it('accepts #rrggbb hex colors', () => {
+    expect(isDialBackgroundColor('#14161c')).toBe(true);
+    expect(isDialBackgroundColor('#ABCDEF')).toBe(true);
+    expect(isDialBackgroundColor('#fff')).toBe(false);
+    expect(isDialBackgroundColor('rgb(20,22,28)')).toBe(false);
+    expect(isDialBackgroundColor('14161c')).toBe(false);
+  });
+
+  it('normalizes color and opacity', () => {
+    expect(normalizeDialBackgroundColor(' #AbCdEf ')).toBe('#abcdef');
+    expect(normalizeDialBackgroundColor('')).toBeUndefined();
+    expect(normalizeDialBackgroundColor('#fff')).toBeUndefined();
+    expect(normalizeDialBackgroundOpacity(0.72)).toBe(0.72);
+    expect(normalizeDialBackgroundOpacity(0)).toBe(0);
+    expect(normalizeDialBackgroundOpacity(1)).toBe(1);
+    expect(normalizeDialBackgroundOpacity(1.5)).toBeUndefined();
+    expect(normalizeDialBackgroundOpacity(NaN)).toBeUndefined();
+  });
+
+  it('dialBackgroundCss uses CSS default when unset', () => {
+    expect(dialBackgroundCss()).toBeUndefined();
+    expect(dialBackgroundCss(undefined, undefined)).toBeUndefined();
+  });
+
+  it('dialBackgroundCss fills missing color or opacity', () => {
+    expect(dialBackgroundCss('#ff0000')).toBe(
+      `rgba(255, 0, 0, ${DEFAULT_DIAL_BACKGROUND_OPACITY})`,
+    );
+    expect(dialBackgroundCss(undefined, 0.5)).toBe(
+      `rgba(20, 22, 28, 0.5)`,
+    );
+    expect(DEFAULT_DIAL_BACKGROUND_COLOR).toBe('#14161c');
+    expect(dialBackgroundCss('#00ff00', 0.25)).toBe('rgba(0, 255, 0, 0.25)');
   });
 });
