@@ -52,8 +52,13 @@
     !editMode ? 'pointer' : dragging ? 'grabbing' : 'grab',
   );
 
-  /** Armed while primary button is held on this cell; cleared on leave/cancel. */
-  let pressArmed = $state(false);
+  const CLICK_MOVE_THRESHOLD = 4;
+
+  let cellEl: HTMLDivElement | undefined = $state();
+  let pressArmed = false;
+  let pressPointerId: number | null = null;
+  let pressStartX = 0;
+  let pressStartY = 0;
 
   const handles: ResizeHandle[] = [
     'n',
@@ -80,9 +85,75 @@
     };
     return positions[handle];
   }
+
+  function pointInCell(clientX: number, clientY: number): boolean {
+    if (!cellEl) return false;
+    const rect = cellEl.getBoundingClientRect();
+    return (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    );
+  }
+
+  function detachPressListeners() {
+    window.removeEventListener('pointermove', onPressPointerMove);
+    window.removeEventListener('pointerup', onPressPointerUp);
+    window.removeEventListener('pointercancel', onPressPointerCancel);
+  }
+
+  function onPressPointerMove(event: PointerEvent) {
+    if (event.pointerId !== pressPointerId || !pressArmed) return;
+    const dx = event.clientX - pressStartX;
+    const dy = event.clientY - pressStartY;
+    if (
+      Math.hypot(dx, dy) > CLICK_MOVE_THRESHOLD ||
+      !pointInCell(event.clientX, event.clientY)
+    ) {
+      pressArmed = false;
+    }
+  }
+
+  function endPressTracking(event: PointerEvent) {
+    if (event.pointerId !== pressPointerId) return false;
+    pressArmed = false;
+    pressPointerId = null;
+    detachPressListeners();
+    return true;
+  }
+
+  function onPressPointerUp(event: PointerEvent) {
+    const wasTracking = event.pointerId === pressPointerId;
+    const shouldNavigate =
+      wasTracking && pressArmed && pointInCell(event.clientX, event.clientY);
+    if (!endPressTracking(event)) return;
+    if (shouldNavigate) onNavigate(dial);
+  }
+
+  function onPressPointerCancel(event: PointerEvent) {
+    // Abort only — never navigate (e.g. native image drag cancel).
+    endPressTracking(event);
+  }
+
+  function beginBrowsePress(event: PointerEvent) {
+    detachPressListeners();
+    pressArmed = true;
+    pressPointerId = event.pointerId;
+    pressStartX = event.clientX;
+    pressStartY = event.clientY;
+    window.addEventListener('pointermove', onPressPointerMove);
+    window.addEventListener('pointerup', onPressPointerUp);
+    window.addEventListener('pointercancel', onPressPointerCancel);
+  }
+
+  $effect(() => {
+    return () => detachPressListeners();
+  });
 </script>
 
 <div
+  bind:this={cellEl}
   class="group absolute z-10 flex flex-col overflow-hidden rounded-lg border border-[var(--dial-border)] bg-[var(--dial-bg)] transition-[box-shadow,opacity,background,transform,border-color] hover:bg-[var(--dial-bg-hover)] hover:border-[rgba(255,255,255,0.18)]"
   class:ring-2={selected && editMode}
   class:hover:scale-[1.02]={hoverLift}
@@ -101,29 +172,15 @@
   tabindex="0"
   onpointerdown={(e) => {
     if (!editMode) {
-      if (e.button === 0) pressArmed = true;
+      if (e.button === 0) beginBrowsePress(e);
       return;
     }
     if ((e.target as HTMLElement).closest('[data-handle]')) return;
     onMoveStart(dial, e);
   }}
-  onpointerleave={() => {
-    pressArmed = false;
-  }}
-  onpointercancel={() => {
-    pressArmed = false;
-  }}
   onclick={(e) => {
-    if (editMode) {
-      e.preventDefault();
-      return;
-    }
-    if (!pressArmed) {
-      e.preventDefault();
-      return;
-    }
-    pressArmed = false;
-    onNavigate(dial);
+    // Browse navigation is handled on pointerup; block residual clicks.
+    e.preventDefault();
   }}
   ondblclick={(e) => {
     if (!editMode) return;
@@ -145,9 +202,9 @@
       <img
         src={favicon}
         alt=""
-        class="max-h-[40%] min-h-0 shrink rounded-sm object-contain"
-        style:width="{iconSize}px"
-        style:height="{iconSize}px"
+        draggable="false"
+        class="max-h-[40%] min-h-0 shrink rounded-sm object-contain select-none"
+        style="width: {iconSize}px; height: {iconSize}px; -webkit-user-drag: none"
         loading="lazy"
         onerror={(e) => {
           (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
