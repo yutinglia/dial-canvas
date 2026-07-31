@@ -9,15 +9,37 @@ export default defineConfig({
     firefoxDataCollection: true,
   },
   manifest: {
-    name: 'My Speed Dial',
-    description: 'A customizable free-form speed dial for your new tab page.',
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
+    default_locale: 'en',
     permissions: ['storage'],
+    optional_permissions: ['bookmarks'],
     host_permissions: ['http://*/*', 'https://*/*'],
     icons: {
       16: 'icons/icon-16.png',
       32: 'icons/icon-32.png',
       48: 'icons/icon-48.png',
       128: 'icons/icon-128.png',
+    },
+    commands: {
+      'toggle-edit': {
+        suggested_key: {
+          default: 'Alt+E',
+        },
+        description: '__MSG_cmdToggleEdit__',
+      },
+      'add-dial': {
+        suggested_key: {
+          default: 'Alt+A',
+        },
+        description: '__MSG_cmdAddDial__',
+      },
+      'search-dials': {
+        suggested_key: {
+          default: 'Alt+F',
+        },
+        description: 'Search dials',
+      },
     },
     browser_specific_settings: {
       gecko: {

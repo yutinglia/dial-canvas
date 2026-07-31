@@ -61,16 +61,16 @@ describe('resolveDrop', () => {
     ).toEqual(rect(16, 16, 64, 48));
   });
 
-  it('skips snap when snapEnabled is false', () => {
+  it('soft-snaps when a threshold is provided', () => {
     expect(
       resolveDrop(
         rect(18, 20, 70, 50),
         previous,
         [],
-        { gridSize: 16, snapEnabled: false },
+        { gridSize: 16, snapEnabled: true, snapThreshold: 4 },
         canvas,
       ),
-    ).toEqual(rect(18, 20, 70, 50));
+    ).toEqual(rect(16, 16, 70, 48));
   });
 
   it('reverts to previousValid on overlap after snap/clamp', () => {

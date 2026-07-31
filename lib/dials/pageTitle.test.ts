@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { extractTitleFromHtml, titleFromHostname } from './pageTitle';
+import {
+  extractFaviconFromHtml,
+  extractTitleFromHtml,
+  titleFromHostname,
+} from './pageTitle';
 
 describe('titleFromHostname', () => {
   it('returns the hostname without www', () => {
@@ -27,7 +31,53 @@ describe('extractTitleFromHtml', () => {
     ).toBe('Foo & Bar');
   });
 
+  it('decodes numeric and hex entities', () => {
+    expect(extractTitleFromHtml('<title>A&#39;s &#x26; B</title>')).toBe(
+      "A's & B",
+    );
+  });
+
+  it('leaves invalid code points untouched', () => {
+    expect(extractTitleFromHtml('<title>bad&#x110000;</title>')).toBe(
+      'bad&#x110000;',
+    );
+    expect(extractTitleFromHtml('<title>bad&#55296;</title>')).toBe(
+      'bad&#55296;',
+    );
+    expect(extractTitleFromHtml('<title>bad&#-1;</title>')).toBe('bad&#-1;');
+  });
+
   it('returns null when no title is present', () => {
     expect(extractTitleFromHtml('<html><body>Hi</body></html>')).toBeNull();
+  });
+});
+
+describe('extractFaviconFromHtml', () => {
+  it('prefers rel=icon and resolves relative hrefs', () => {
+    const html = `
+      <html><head>
+        <link rel="stylesheet" href="/app.css">
+        <link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+      </head></html>
+    `;
+    expect(extractFaviconFromHtml(html, 'https://example.com/page')).toBe(
+      'https://example.com/icons/favicon-32.png',
+    );
+  });
+
+  it('uses base href when present', () => {
+    const html = `
+      <base href="https://cdn.example.com/site/">
+      <link rel="shortcut icon" href="icon.ico">
+    `;
+    expect(extractFaviconFromHtml(html, 'https://example.com/')).toBe(
+      'https://cdn.example.com/site/icon.ico',
+    );
+  });
+
+  it('returns null when no icon links exist', () => {
+    expect(
+      extractFaviconFromHtml('<html><head></head></html>', 'https://example.com/'),
+    ).toBeNull();
   });
 });

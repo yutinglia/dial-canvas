@@ -1,6 +1,12 @@
 <script lang="ts">
-  import type { Dial } from '../lib/schemas/dial';
+  import {
+    isAllowedDialUrl,
+    isAllowedFaviconUrl,
+    normalizeDialUrl,
+    type Dial,
+  } from '../lib/schemas/dial';
   import { titleFromHostname } from '../lib/dials/pageTitle';
+  import { t } from '../lib/i18n';
 
   interface Props {
     open: boolean;
@@ -60,6 +66,7 @@
     title?: string;
     error?: string;
     source?: 'html' | 'hostname';
+    faviconUrl?: string;
   };
 
   async function requestPageTitle(targetUrl: string): Promise<FetchResult> {
@@ -88,12 +95,9 @@
   }
 
   async function fetchTitle(opts: { overwrite: boolean }) {
-    const trimmedUrl = url.trim();
-    let parsed: URL;
-    try {
-      parsed = new URL(trimmedUrl);
-    } catch {
-      titleStatus = 'Enter a valid URL first.';
+    const normalized = normalizeDialUrl(url);
+    if (!normalized || !isAllowedDialUrl(normalized)) {
+      titleStatus = 'Enter an http(s) or about: URL first.';
       return;
     }
 
@@ -101,16 +105,24 @@
 
     const seq = ++fetchSeq;
     fetchingTitle = true;
-    titleStatus = 'Fetching title…';
+    titleStatus = t('fetching');
 
-    const result = await requestPageTitle(parsed.toString());
+    const result = await requestPageTitle(normalized);
     if (seq !== fetchSeq) return;
 
     fetchingTitle = false;
-    const nextTitle = (result.title ?? titleFromHostname(parsed.toString())).trim();
+    const nextTitle = (result.title ?? titleFromHostname(normalized)).trim();
 
     if (opts.overwrite || !title.trim()) {
       if (nextTitle) title = nextTitle;
+    }
+
+    if (
+      result.faviconUrl &&
+      isAllowedFaviconUrl(result.faviconUrl) &&
+      (!faviconUrl.trim() || opts.overwrite)
+    ) {
+      faviconUrl = result.faviconUrl;
     }
 
     if (result.ok && result.source === 'html') {
@@ -131,24 +143,33 @@
   function submit(event: Event) {
     event.preventDefault();
     const trimmedTitle = title.trim();
-    const trimmedUrl = url.trim();
     if (!trimmedTitle) {
       error = 'Title is required.';
       return;
     }
-    try {
-      // Normalize / validate URL
-      const parsed = new URL(trimmedUrl);
-      onSave({
-        title: trimmedTitle,
-        url: parsed.toString(),
-        faviconUrl: faviconUrl.trim() || undefined,
-        iconSize: iconSizeOverride ?? undefined,
-        fontSize: fontSizeOverride ?? undefined,
-      });
-    } catch {
-      error = 'Enter a valid URL (including https://).';
+    const normalizedUrl = normalizeDialUrl(url);
+    if (!normalizedUrl || !isAllowedDialUrl(normalizedUrl)) {
+      error = 'URL must use http://, https://, or about:.';
+      return;
     }
+    const trimmedFavicon = faviconUrl.trim();
+    if (trimmedFavicon && !isAllowedFaviconUrl(trimmedFavicon)) {
+      error =
+        'Favicon must be an http(s) URL or a short data:image URL.';
+      return;
+    }
+    onSave({
+      title: trimmedTitle,
+      url: normalizedUrl,
+      faviconUrl: trimmedFavicon || undefined,
+      iconSize: iconSizeOverride ?? undefined,
+      fontSize: fontSizeOverride ?? undefined,
+    });
+  }
+
+  function requestDelete() {
+    if (!onDelete) return;
+    if (confirm(t('confirmDeleteDial'))) onDelete();
   }
 
   function onKeydown(event: KeyboardEvent) {
@@ -173,11 +194,11 @@
       onsubmit={submit}
     >
       <h2 class="mb-4 text-lg font-medium">
-        {dial ? 'Edit dial' : 'Add dial'}
+        {dial ? t('editDial') : t('addDial')}
       </h2>
 
       <label class="mb-3 block text-sm">
-        <span class="mb-1 block text-[var(--text-muted)]">URL</span>
+        <span class="mb-1 block text-[var(--text-muted)]">{t('url')}</span>
         <input
           class="w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
           style:border-color="var(--dial-border)"
@@ -190,7 +211,7 @@
 
       <div class="mb-3 block text-sm">
         <div class="mb-1 flex items-center justify-between gap-2">
-          <label for="dial-title" class="text-[var(--text-muted)]">Title</label>
+          <label for="dial-title" class="text-[var(--text-muted)]">{t('title')}</label>
           <button
             type="button"
             class="rounded px-2 py-0.5 text-xs transition-opacity"
@@ -199,7 +220,7 @@
             disabled={fetchingTitle}
             onclick={() => void fetchTitle({ overwrite: true })}
           >
-            {fetchingTitle ? 'Fetching…' : 'Fetch title'}
+            {fetchingTitle ? t('fetching') : t('fetchTitle')}
           </button>
         </div>
         <input
@@ -215,9 +236,7 @@
       </div>
 
       <label class="mb-3 block text-sm">
-        <span class="mb-1 block text-[var(--text-muted)]"
-          >Favicon URL (optional)</span
-        >
+        <span class="mb-1 block text-[var(--text-muted)]">{t('faviconUrl')}</span>
         <input
           class="w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
           style:border-color="var(--dial-border)"
@@ -230,7 +249,7 @@
       <div class="mb-3 block text-sm">
         <div class="mb-1 flex items-center justify-between gap-2">
           <span class="text-[var(--text-muted)]">
-            Icon size
+            {t('iconSize')}
             <span class="ml-1 text-[var(--text-muted)]">
               {effectiveIconSize}px{iconSizeOverride == null
                 ? ' (global)'
@@ -245,7 +264,7 @@
               style:color="var(--accent)"
               onclick={() => (iconSizeOverride = null)}
             >
-              Use global
+              {t('useGlobal')}
             </button>
           {/if}
         </div>
@@ -267,7 +286,7 @@
       <div class="mb-4 block text-sm">
         <div class="mb-1 flex items-center justify-between gap-2">
           <span class="text-[var(--text-muted)]">
-            Font size
+            {t('fontSize')}
             <span class="ml-1 text-[var(--text-muted)]">
               {effectiveFontSize}px{fontSizeOverride == null
                 ? ' (global)'
@@ -282,7 +301,7 @@
               style:color="var(--accent)"
               onclick={() => (fontSizeOverride = null)}
             >
-              Use global
+              {t('useGlobal')}
             </button>
           {/if}
         </div>
@@ -312,9 +331,9 @@
               type="button"
               class="rounded-md px-3 py-1.5 text-sm"
               style:color="var(--danger)"
-              onclick={onDelete}
+              onclick={requestDelete}
             >
-              Delete
+              {t('deleteDial')}
             </button>
           {/if}
         </div>
@@ -325,7 +344,7 @@
             style:border="1px solid var(--dial-border)"
             onclick={onClose}
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             type="submit"
@@ -333,7 +352,7 @@
             style:background="var(--accent)"
             style:color="#0f1216"
           >
-            Save
+            {t('save')}
           </button>
         </div>
       </div>

@@ -8,7 +8,9 @@
     resolveDrop,
     snapRect,
     type Rect,
+    type Size,
   } from '../lib/layout';
+  import { t } from '../lib/i18n';
 
   type ResizeHandle =
     | 'n'
@@ -24,20 +26,28 @@
     dials: Dial[];
     settings: Settings;
     editMode: boolean;
+    searchQuery?: string;
     onDialsChange: (dials: Dial[], opts?: { immediate?: boolean }) => void;
     onEditDial: (dial: Dial) => void;
+    onCanvasSizeChange?: (size: Size) => void;
+    onContextMenu: (dial: Dial, event: MouseEvent) => void;
+    onAddDial?: () => void;
   }
 
   let {
     dials,
     settings,
     editMode,
+    searchQuery = '',
     onDialsChange,
     onEditDial,
+    onCanvasSizeChange,
+    onContextMenu,
+    onAddDial,
   }: Props = $props();
 
   let canvasEl: HTMLDivElement | undefined = $state();
-  let canvasSize = $state({ width: 1200, height: 800 });
+  let canvasSize = $state<Size>({ width: 1200, height: 800 });
   let selectedId = $state<string | null>(null);
   let previewById = $state<Record<string, Rect>>({});
 
@@ -65,15 +75,31 @@
   let interaction = $state<Interaction | null>(null);
   const DRAG_THRESHOLD = 4;
 
+  const query = $derived(searchQuery.trim().toLowerCase());
+  const hasQuery = $derived(query.length > 0);
+
+  function matchesQuery(dial: Dial): boolean {
+    if (!hasQuery) return true;
+    return (
+      dial.title.toLowerCase().includes(query) ||
+      dial.url.toLowerCase().includes(query)
+    );
+  }
+
   function measureCanvas() {
     if (!canvasEl) return;
-    canvasSize = {
+    const next = {
       width: Math.max(settings.canvasMinWidth, canvasEl.clientWidth),
       height: Math.max(settings.canvasMinHeight, canvasEl.clientHeight),
     };
+    canvasSize = next;
+    onCanvasSizeChange?.(next);
   }
 
   $effect(() => {
+    // Re-measure when min canvas settings change.
+    void settings.canvasMinWidth;
+    void settings.canvasMinHeight;
     measureCanvas();
     const observer = new ResizeObserver(() => measureCanvas());
     if (canvasEl) observer.observe(canvasEl);
@@ -96,7 +122,7 @@
   function liveCandidate(raw: Rect): Rect {
     let next = clampRect(raw, canvasSize);
     if (settings.snapEnabled) {
-      next = snapRect(next, settings.gridSize);
+      next = snapRect(next, settings.gridSize, settings.snapThreshold);
     }
     return next;
   }
@@ -199,7 +225,6 @@
     const candidate = liveCandidate(proposed);
     previewById = { ...previewById, [active.id]: candidate };
 
-    // Debounced persist of live candidate during drag
     onDialsChange(
       dials.map((d) => (d.id === active.id ? { ...d, ...candidate } : d)),
       { immediate: false },
@@ -211,10 +236,7 @@
     if (!active || event.pointerId !== active.pointerId) return;
 
     const proposed = previewById[active.id] ?? active.origin;
-    // Exclude active dial using origin positions of others
-    const others = dials
-      .filter((d) => d.id !== active.id)
-      .map(dialRect);
+    const others = dials.filter((d) => d.id !== active.id).map(dialRect);
 
     const committed = resolveDrop(
       proposed,
@@ -223,6 +245,7 @@
       {
         gridSize: settings.gridSize,
         snapEnabled: settings.snapEnabled,
+        snapThreshold: settings.snapThreshold,
       },
       canvasSize,
     );
@@ -239,14 +262,6 @@
     onDialsChange(nextDials, { immediate: true });
   }
 
-  function onNavigate(dial: Dial) {
-    window.location.href = dial.url;
-  }
-
-  export function getCanvasSize() {
-    return { ...canvasSize };
-  }
-
   $effect(() => {
     return () => detachWindowListeners();
   });
@@ -255,7 +270,6 @@
 <div
   bind:this={canvasEl}
   class="relative h-full w-full overflow-hidden"
-  style:background="var(--canvas-bg)"
   style:min-width="{settings.canvasMinWidth}px"
   style:min-height="{settings.canvasMinHeight}px"
   style:cursor={interaction?.kind === 'move' ? 'grabbing' : undefined}
@@ -266,6 +280,32 @@
     visible={editMode && settings.snapEnabled}
   />
 
+  {#if dials.length === 0}
+    <div
+      class="pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 px-6 text-center"
+    >
+      <p class="text-base text-[var(--dial-title)]">{t('emptyCanvas')}</p>
+      <p class="text-sm text-[var(--text-muted)]">{t('emptyCanvasHint')}</p>
+      {#if editMode && onAddDial}
+        <button
+          type="button"
+          class="pointer-events-auto mt-2 rounded-md px-3 py-1.5 text-sm"
+          style:background="var(--accent)"
+          style:color="#0f1216"
+          onclick={onAddDial}
+        >
+          + {t('addDial')}
+        </button>
+      {/if}
+    </div>
+  {:else if hasQuery && !dials.some(matchesQuery)}
+    <div
+      class="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center px-6 text-center text-sm text-[var(--text-muted)]"
+    >
+      {t('searchNoResults')}
+    </div>
+  {/if}
+
   {#each dials as dial (dial.id)}
     {@const rect = displayRect(dial)}
     <DialCell
@@ -274,12 +314,13 @@
       selected={selectedId === dial.id}
       preview={Boolean(previewById[dial.id])}
       dragging={interaction?.kind === 'move' && interaction.id === dial.id}
+      dimmed={hasQuery && !matchesQuery(dial)}
       iconSize={dial.iconSize ?? settings.iconSize}
       fontSize={dial.fontSize ?? settings.fontSize}
-      {onNavigate}
       onEdit={onEditDial}
       {onMoveStart}
       {onResizeStart}
+      {onContextMenu}
     />
   {/each}
 </div>

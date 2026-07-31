@@ -1,0 +1,219 @@
+{
+  "extName": {
+    "message": "My Speed Dial"
+  },
+  "extDescription": {
+    "message": "A customizable free-form speed dial for your new tab page."
+  },
+  "loading": {
+    "message": "Loading…"
+  },
+  "edit": {
+    "message": "Edit"
+  },
+  "done": {
+    "message": "Done"
+  },
+  "addDial": {
+    "message": "Add dial"
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "editMode": {
+    "message": "Edit mode"
+  },
+  "editHint": {
+    "message": "Hover the top-right corner, or click Edit to arrange dials."
+  },
+  "emptyCanvas": {
+    "message": "No dials on this page yet."
+  },
+  "emptyCanvasHint": {
+    "message": "Click Edit, then Add dial to get started."
+  },
+  "searchPlaceholder": {
+    "message": "Search dials…"
+  },
+  "searchNoResults": {
+    "message": "No dials match your search."
+  },
+  "pageHome": {
+    "message": "Home"
+  },
+  "addPage": {
+    "message": "Add page"
+  },
+  "renamePage": {
+    "message": "Rename page"
+  },
+  "deletePage": {
+    "message": "Delete page"
+  },
+  "confirmDeletePage": {
+    "message": "Delete this page and all of its dials?"
+  },
+  "confirmDeleteDial": {
+    "message": "Delete this dial?"
+  },
+  "confirmReset": {
+    "message": "Reset all dials and settings to defaults? This cannot be undone."
+  },
+  "exportJson": {
+    "message": "Export JSON"
+  },
+  "importJson": {
+    "message": "Import JSON"
+  },
+  "resetDefaults": {
+    "message": "Reset to defaults"
+  },
+  "importSuccess": {
+    "message": "Import complete."
+  },
+  "importFailed": {
+    "message": "Import failed. Check that the file is a valid Speed Dial backup."
+  },
+  "exportFailed": {
+    "message": "Export failed."
+  },
+  "resetDone": {
+    "message": "Reset to defaults."
+  },
+  "copyUrl": {
+    "message": "Copy URL"
+  },
+  "openDial": {
+    "message": "Open"
+  },
+  "deleteDial": {
+    "message": "Delete"
+  },
+  "editDial": {
+    "message": "Edit dial"
+  },
+  "dialCopied": {
+    "message": "URL copied."
+  },
+  "copyFailed": {
+    "message": "Could not copy URL."
+  },
+  "saveFailed": {
+    "message": "Failed to save. Your latest changes are kept in this tab."
+  },
+  "syncFailed": {
+    "message": "Failed to sync from storage."
+  },
+  "loadFailed": {
+    "message": "Failed to load speed dial data."
+  },
+  "dialRemovedOne": {
+    "message": "1 invalid dial was removed."
+  },
+  "dialRemovedMany": {
+    "message": "$1 invalid dials were removed.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "invalidDialUrl": {
+    "message": "Dial URL must use http://, https://, or about:."
+  },
+  "bookmarksImport": {
+    "message": "Import bookmarks"
+  },
+  "bookmarksPermission": {
+    "message": "Bookmarks permission is required to import."
+  },
+  "bookmarksNone": {
+    "message": "No bookmark URLs found."
+  },
+  "bookmarksImported": {
+    "message": "Imported $1 bookmark(s).",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "cmdToggleEdit": {
+    "message": "Toggle edit mode"
+  },
+  "cmdAddDial": {
+    "message": "Add a new dial"
+  },
+  "backgroundColor": {
+    "message": "Background color"
+  },
+  "backgroundImage": {
+    "message": "Wallpaper image URL"
+  },
+  "backgroundFit": {
+    "message": "Wallpaper fit"
+  },
+  "fitCover": {
+    "message": "Cover"
+  },
+  "fitContain": {
+    "message": "Contain"
+  },
+  "fitTile": {
+    "message": "Tile"
+  },
+  "canvasMinWidth": {
+    "message": "Min canvas width"
+  },
+  "canvasMinHeight": {
+    "message": "Min canvas height"
+  },
+  "snapThreshold": {
+    "message": "Snap threshold"
+  },
+  "gridSize": {
+    "message": "Grid size"
+  },
+  "snapEnabled": {
+    "message": "Snap to grid (adsorption)"
+  },
+  "iconSize": {
+    "message": "Icon size"
+  },
+  "fontSize": {
+    "message": "Font size"
+  },
+  "close": {
+    "message": "Close"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "title": {
+    "message": "Title"
+  },
+  "url": {
+    "message": "URL"
+  },
+  "faviconUrl": {
+    "message": "Favicon URL (optional)"
+  },
+  "fetchTitle": {
+    "message": "Fetch title"
+  },
+  "fetching": {
+    "message": "Fetching…"
+  },
+  "useGlobal": {
+    "message": "Use global"
+  },
+  "dataBackup": {
+    "message": "Backup"
+  },
+  "pages": {
+    "message": "Pages"
+  }
+}

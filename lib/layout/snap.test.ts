@@ -47,4 +47,13 @@ describe('snapRect', () => {
       snapRect({ x: 0, y: 0, width: 24, height: 40 }, 16),
     ).toEqual({ x: 0, y: 0, width: 32, height: 48 });
   });
+
+  it('soft-snaps only when within threshold', () => {
+    expect(
+      snapRect({ x: 10, y: 10, width: 70, height: 50 }, 16, 4),
+    ).toEqual({ x: 10, y: 10, width: 70, height: 48 });
+    expect(
+      snapRect({ x: 14, y: 2, width: 66, height: 50 }, 16, 4),
+    ).toEqual({ x: 16, y: 0, width: 64, height: 48 });
+  });
 });

@@ -1,49 +1,100 @@
 import type { Dial } from '../schemas/dial';
 import type { Settings } from '../schemas/settings';
-import { createEmptyStore, type Store } from '../schemas/store';
+import {
+  createEmptyStore,
+  withActiveDials,
+  type Store,
+} from '../schemas/store';
 import { STORAGE_KEYS } from './keys';
-import { migrateStore } from './migrate';
+import { migrateStoreWithMeta } from './migrate';
 import { createSeedDials } from '../dials/seed';
 
-export async function getStore(): Promise<Store> {
+export type LoadStoreResult = {
+  store: Store;
+  droppedDialCount: number;
+  repaired: boolean;
+};
+
+/** Serialize concurrent storage.local writes. */
+let writeChain: Promise<void> = Promise.resolve();
+
+function enqueueWrite(task: () => Promise<void>): Promise<void> {
+  const run = writeChain.then(task, task);
+  // Keep the chain alive even if a write fails.
+  writeChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+export async function getStore(): Promise<LoadStoreResult> {
   const result = await browser.storage.local.get(STORAGE_KEYS.store);
   const raw = result[STORAGE_KEYS.store];
 
   if (raw === undefined) {
     const seeded = createEmptyStore(createSeedDials());
     await setStore(seeded);
-    return seeded;
+    return { store: seeded, droppedDialCount: 0, repaired: false };
   }
 
-  return migrateStore(raw);
+  const migrated = migrateStoreWithMeta(raw);
+  if (migrated.repaired) {
+    await setStore(migrated.store);
+  }
+  return {
+    store: migrated.store,
+    droppedDialCount: migrated.droppedDialCount,
+    repaired: migrated.repaired,
+  };
 }
 
 export async function setStore(store: Store): Promise<void> {
-  await browser.storage.local.set({ [STORAGE_KEYS.store]: store });
+  await enqueueWrite(async () => {
+    await browser.storage.local.set({ [STORAGE_KEYS.store]: store });
+  });
 }
 
-export async function updateDials(dials: Dial[]): Promise<Store> {
-  const store = await getStore();
-  const next: Store = { ...store, dials };
+/**
+ * Apply dial updates against an in-memory base store (never re-reads storage).
+ * Prefer App's in-memory + debounced saver; this exists for callers that already
+ * hold the current store and need a serialized write.
+ */
+export async function updateDials(
+  base: Store,
+  dials: Dial[],
+): Promise<Store> {
+  const next = withActiveDials(base, dials);
   await setStore(next);
   return next;
 }
 
+/**
+ * Apply settings updates against an in-memory base store (never re-reads storage).
+ */
 export async function updateSettings(
+  base: Store,
   partial: Partial<Settings>,
 ): Promise<Store> {
-  const store = await getStore();
   const next: Store = {
-    ...store,
-    settings: { ...store.settings, ...partial },
+    ...base,
+    settings: { ...base.settings, ...partial },
   };
   await setStore(next);
   return next;
 }
 
-export function createDebouncedSaver(delayMs = 200) {
+export type DebouncedSaverOptions = {
+  onError?: (error: unknown) => void;
+};
+
+export function createDebouncedSaver(
+  delayMs = 200,
+  options: DebouncedSaverOptions = {},
+) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pending: Store | undefined;
+  let inflight = 0;
 
   const flush = async () => {
     if (timer) {
@@ -53,14 +104,26 @@ export function createDebouncedSaver(delayMs = 200) {
     if (!pending) return;
     const store = pending;
     pending = undefined;
-    await setStore(store);
+    inflight += 1;
+    try {
+      await setStore(store);
+    } catch (error) {
+      // Re-queue so a later flush/hasPending still reflects unsaved work.
+      if (!pending) pending = store;
+      options.onError?.(error);
+      throw error;
+    } finally {
+      inflight -= 1;
+    }
   };
 
   const schedule = (store: Store) => {
     pending = store;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      void flush();
+      void flush().catch(() => {
+        // Error already reported via onError.
+      });
     }, delayMs);
   };
 
@@ -70,8 +133,19 @@ export function createDebouncedSaver(delayMs = 200) {
       clearTimeout(timer);
       timer = undefined;
     }
-    await setStore(store);
+    inflight += 1;
+    try {
+      await setStore(store);
+    } catch (error) {
+      if (!pending) pending = store;
+      options.onError?.(error);
+      throw error;
+    } finally {
+      inflight -= 1;
+    }
   };
 
-  return { schedule, flush, saveNow };
+  const hasPending = () => pending !== undefined || inflight > 0;
+
+  return { schedule, flush, saveNow, hasPending };
 }

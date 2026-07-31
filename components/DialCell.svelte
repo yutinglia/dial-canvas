@@ -1,6 +1,11 @@
 <script lang="ts">
   import type { Dial } from '../lib/schemas/dial';
-  import { resolveFaviconUrl } from '../lib/dials/favicon';
+  import { isAllowedDialUrl } from '../lib/schemas/dial';
+  import {
+    dialMonogram,
+    resolveFaviconChain,
+  } from '../lib/dials/favicon';
+  import { t } from '../lib/i18n';
 
   type ResizeHandle =
     | 'n'
@@ -18,9 +23,9 @@
     selected?: boolean;
     preview?: boolean;
     dragging?: boolean;
+    dimmed?: boolean;
     iconSize?: number;
     fontSize?: number;
-    onNavigate: (dial: Dial) => void;
     onEdit: (dial: Dial) => void;
     onMoveStart: (dial: Dial, event: PointerEvent) => void;
     onResizeStart: (
@@ -28,6 +33,7 @@
       handle: ResizeHandle,
       event: PointerEvent,
     ) => void;
+    onContextMenu: (dial: Dial, event: MouseEvent) => void;
   }
 
   let {
@@ -36,29 +42,41 @@
     selected = false,
     preview = false,
     dragging = false,
+    dimmed = false,
     iconSize = 40,
     fontSize = 15,
-    onNavigate,
     onEdit,
     onMoveStart,
     onResizeStart,
+    onContextMenu,
   }: Props = $props();
 
-  const hoverLift = $derived(!preview && !dragging);
+  const hoverLift = $derived(!preview && !dragging && !editMode);
+  const faviconChain = $derived(resolveFaviconChain(dial.url, dial.faviconUrl));
+  const monogram = $derived(dialMonogram(dial.title));
+  const canLink = $derived(isAllowedDialUrl(dial.url));
 
-  const favicon = $derived(resolveFaviconUrl(dial.url, dial.faviconUrl));
+  let faviconIndex = $state(0);
+  let showMonogram = $state(false);
+
+  $effect(() => {
+    // Reset icon chain when dial identity / favicon changes.
+    void dial.id;
+    void dial.faviconUrl;
+    void dial.url;
+    faviconIndex = 0;
+    showMonogram = faviconChain.length === 0;
+  });
+
+  const currentFavicon = $derived(
+    !showMonogram && faviconIndex < faviconChain.length
+      ? faviconChain[faviconIndex]
+      : '',
+  );
 
   const cursor = $derived(
     !editMode ? 'pointer' : dragging ? 'grabbing' : 'grab',
   );
-
-  const CLICK_MOVE_THRESHOLD = 4;
-
-  let cellEl: HTMLDivElement | undefined = $state();
-  let pressArmed = false;
-  let pressPointerId: number | null = null;
-  let pressStartX = 0;
-  let pressStartY = 0;
 
   const handles: ResizeHandle[] = [
     'n',
@@ -86,130 +104,45 @@
     return positions[handle];
   }
 
-  function pointInCell(clientX: number, clientY: number): boolean {
-    if (!cellEl) return false;
-    const rect = cellEl.getBoundingClientRect();
-    return (
-      clientX >= rect.left &&
-      clientX <= rect.right &&
-      clientY >= rect.top &&
-      clientY <= rect.bottom
-    );
-  }
-
-  function detachPressListeners() {
-    window.removeEventListener('pointermove', onPressPointerMove);
-    window.removeEventListener('pointerup', onPressPointerUp);
-    window.removeEventListener('pointercancel', onPressPointerCancel);
-  }
-
-  function onPressPointerMove(event: PointerEvent) {
-    if (event.pointerId !== pressPointerId || !pressArmed) return;
-    const dx = event.clientX - pressStartX;
-    const dy = event.clientY - pressStartY;
-    if (
-      Math.hypot(dx, dy) > CLICK_MOVE_THRESHOLD ||
-      !pointInCell(event.clientX, event.clientY)
-    ) {
-      pressArmed = false;
+  function onFaviconError() {
+    const next = faviconIndex + 1;
+    if (next < faviconChain.length) {
+      faviconIndex = next;
+    } else {
+      showMonogram = true;
     }
   }
 
-  function endPressTracking(event: PointerEvent) {
-    if (event.pointerId !== pressPointerId) return false;
-    pressArmed = false;
-    pressPointerId = null;
-    detachPressListeners();
-    return true;
-  }
-
-  function onPressPointerUp(event: PointerEvent) {
-    const wasTracking = event.pointerId === pressPointerId;
-    const shouldNavigate =
-      wasTracking && pressArmed && pointInCell(event.clientX, event.clientY);
-    if (!endPressTracking(event)) return;
-    if (shouldNavigate) onNavigate(dial);
-  }
-
-  function onPressPointerCancel(event: PointerEvent) {
-    // Abort only — never navigate (e.g. native image drag cancel).
-    endPressTracking(event);
-  }
-
-  function beginBrowsePress(event: PointerEvent) {
-    detachPressListeners();
-    pressArmed = true;
-    pressPointerId = event.pointerId;
-    pressStartX = event.clientX;
-    pressStartY = event.clientY;
-    window.addEventListener('pointermove', onPressPointerMove);
-    window.addEventListener('pointerup', onPressPointerUp);
-    window.addEventListener('pointercancel', onPressPointerCancel);
-  }
-
-  $effect(() => {
-    return () => detachPressListeners();
-  });
+  const shellClass =
+    'group absolute z-10 flex flex-col overflow-hidden rounded-lg border border-[var(--dial-border)] bg-[var(--dial-bg)] transition-[box-shadow,opacity,background,transform,border-color] hover:bg-[var(--dial-bg-hover)] hover:border-[rgba(255,255,255,0.18)] no-underline text-inherit';
 </script>
 
-<div
-  bind:this={cellEl}
-  class="group absolute z-10 flex flex-col overflow-hidden rounded-lg border border-[var(--dial-border)] bg-[var(--dial-bg)] transition-[box-shadow,opacity,background,transform,border-color] hover:bg-[var(--dial-bg-hover)] hover:border-[rgba(255,255,255,0.18)]"
-  class:ring-2={selected && editMode}
-  class:hover:scale-[1.02]={hoverLift}
-  style:left="{dial.x}px"
-  style:top="{dial.y}px"
-  style:width="{dial.width}px"
-  style:height="{dial.height}px"
-  style:background={preview ? 'rgba(107, 143, 113, 0.18)' : undefined}
-  style:border-color={preview ? 'var(--accent)' : undefined}
-  style:opacity={preview ? 0.85 : 1}
-  style:box-shadow={selected && editMode
-    ? '0 0 0 1px var(--accent)'
-    : 'none'}
-  style:cursor={cursor}
-  role="link"
-  tabindex="0"
-  onpointerdown={(e) => {
-    if (!editMode) {
-      if (e.button === 0) beginBrowsePress(e);
-      return;
-    }
-    if ((e.target as HTMLElement).closest('[data-handle]')) return;
-    onMoveStart(dial, e);
-  }}
-  onclick={(e) => {
-    // Browse navigation is handled on pointerup; block residual clicks.
-    e.preventDefault();
-  }}
-  ondblclick={(e) => {
-    if (!editMode) return;
-    e.preventDefault();
-    onEdit(dial);
-  }}
-  onkeydown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      if (editMode) onEdit(dial);
-      else onNavigate(dial);
-    }
-  }}
->
+{#snippet dialBody()}
   <div
     class="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 p-2 text-center"
   >
-    {#if favicon}
+    {#if currentFavicon}
       <img
-        src={favicon}
+        src={currentFavicon}
         alt=""
         draggable="false"
         class="max-h-[40%] min-h-0 shrink rounded-sm object-contain"
         style="width: {iconSize}px; height: {iconSize}px; -webkit-user-drag: none"
         loading="lazy"
-        onerror={(e) => {
-          (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-        }}
+        onerror={onFaviconError}
       />
+    {:else}
+      <div
+        class="flex shrink-0 items-center justify-center rounded-md font-semibold tracking-wide"
+        style:width="{iconSize}px"
+        style:height="{iconSize}px"
+        style:font-size="{Math.max(12, Math.round(iconSize * 0.42))}px"
+        style:background="rgba(107, 143, 113, 0.22)"
+        style:color="var(--accent)"
+        aria-hidden="true"
+      >
+        {monogram}
+      </div>
     {/if}
     <span
       class="shrink-0 line-clamp-2 leading-snug text-[var(--dial-title)]"
@@ -218,21 +151,55 @@
       {dial.title}
     </span>
   </div>
+{/snippet}
 
-  {#if editMode}
+{#if editMode}
+  <div
+    class={shellClass}
+    class:ring-2={selected}
+    class:hover:scale-[1.02]={false}
+    style:left="{dial.x}px"
+    style:top="{dial.y}px"
+    style:width="{dial.width}px"
+    style:height="{dial.height}px"
+    style:background={preview ? 'rgba(107, 143, 113, 0.18)' : undefined}
+    style:border-color={preview ? 'var(--accent)' : undefined}
+    style:opacity={dimmed ? 0.28 : preview ? 0.85 : 1}
+    style:box-shadow={selected ? '0 0 0 1px var(--accent)' : 'none'}
+    style:cursor={cursor}
+    role="button"
+    tabindex="0"
+    onpointerdown={(e) => {
+      if ((e.target as HTMLElement).closest('[data-handle]')) return;
+      onMoveStart(dial, e);
+    }}
+    ondblclick={(e) => {
+      e.preventDefault();
+      onEdit(dial);
+    }}
+    oncontextmenu={(e) => onContextMenu(dial, e)}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onEdit(dial);
+      }
+    }}
+  >
+    {@render dialBody()}
+
     <button
       type="button"
       class="absolute top-1.5 right-1.5 z-20 rounded px-1.5 py-0.5 text-xs opacity-0 transition-opacity group-hover:opacity-100"
       style:background="var(--toolbar-bg)"
       style:border="1px solid var(--dial-border)"
       style:cursor="pointer"
-      title="Edit dial"
+      title={t('editDial')}
       onclick={(e) => {
         e.stopPropagation();
         onEdit(dial);
       }}
     >
-      Edit
+      {t('edit')}
     </button>
 
     {#each handles as handle (handle)}
@@ -247,5 +214,35 @@
         role="presentation"
       ></div>
     {/each}
-  {/if}
-</div>
+  </div>
+{:else if canLink}
+  <a
+    class={shellClass}
+    class:hover:scale-[1.02]={hoverLift}
+    style:left="{dial.x}px"
+    style:top="{dial.y}px"
+    style:width="{dial.width}px"
+    style:height="{dial.height}px"
+    style:opacity={dimmed ? 0.28 : 1}
+    style:cursor={cursor}
+    href={dial.url}
+    rel="noopener noreferrer"
+    oncontextmenu={(e) => onContextMenu(dial, e)}
+  >
+    {@render dialBody()}
+  </a>
+{:else}
+  <div
+    class={shellClass}
+    style:left="{dial.x}px"
+    style:top="{dial.y}px"
+    style:width="{dial.width}px"
+    style:height="{dial.height}px"
+    style:opacity={dimmed ? 0.28 : 1}
+    style:cursor="not-allowed"
+    role="presentation"
+    oncontextmenu={(e) => onContextMenu(dial, e)}
+  >
+    {@render dialBody()}
+  </div>
+{/if}

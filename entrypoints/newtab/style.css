@@ -2,6 +2,9 @@
 
 :root {
   --canvas-bg: #1a1d23;
+  --canvas-bg-image: none;
+  --canvas-bg-size: cover;
+  --canvas-bg-repeat: no-repeat;
   --dial-bg: rgba(255, 255, 255, 0.06);
   --dial-bg-hover: rgba(255, 255, 255, 0.1);
   --dial-border: rgba(255, 255, 255, 0.1);
@@ -48,4 +51,8 @@ textarea,
 select {
   font: inherit;
   user-select: text;
+}
+
+a {
+  color: inherit;
 }

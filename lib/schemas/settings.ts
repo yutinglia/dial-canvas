@@ -1,9 +1,37 @@
 import { z } from 'zod';
 
-export const BackgroundSchema = z.object({
-  type: z.literal('color'),
-  value: z.string().min(1),
-});
+/** Max length for wallpaper data:image URLs. */
+export const MAX_WALLPAPER_DATA_URL_LENGTH = 1_500_000;
+
+function isAllowedWallpaperValue(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return true;
+    }
+    if (parsed.protocol === 'data:') {
+      if (!/^data:image\/[a-z0-9.+-]+/i.test(value)) return false;
+      return value.length <= MAX_WALLPAPER_DATA_URL_LENGTH;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export const BackgroundSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('color'),
+    value: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('image'),
+    value: z.string().min(1).refine(isAllowedWallpaperValue, {
+      message: 'Wallpaper must be http(s) or a data:image URL',
+    }),
+    fit: z.enum(['cover', 'contain', 'tile']).default('cover'),
+  }),
+]);
 
 export const SettingsSchema = z.object({
   gridSize: z.number().int().min(4).max(64).default(16),

@@ -5,6 +5,8 @@ import type { Rect, Size } from './types';
 export type DropSettings = {
   gridSize: number;
   snapEnabled: boolean;
+  /** Soft-snap distance; omit for hard snap when enabled. */
+  snapThreshold?: number;
 };
 
 export function clampRect(rect: Rect, canvas: Size): Rect {
@@ -28,7 +30,7 @@ export function resolveDrop(
 ): Rect {
   let next = { ...proposed };
   if (settings.snapEnabled) {
-    next = snapRect(next, settings.gridSize);
+    next = snapRect(next, settings.gridSize, settings.snapThreshold);
   }
   next = clampRect(next, canvasSize);
   if (hasOverlap(next, others)) {

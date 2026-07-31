@@ -4,34 +4,174 @@
   import EditToolbar from '../../components/EditToolbar.svelte';
   import DialEditorModal from '../../components/DialEditorModal.svelte';
   import SettingsPanel from '../../components/SettingsPanel.svelte';
+  import DialContextMenu from '../../components/DialContextMenu.svelte';
+  import DialSearchOverlay from '../../components/DialSearchOverlay.svelte';
+  import PageTabs from '../../components/PageTabs.svelte';
   import { createId } from '../../lib/id';
-  import { findFirstFreeSlot } from '../../lib/layout';
-  import type { Dial } from '../../lib/schemas/dial';
+  import { findFirstFreeSlot, type Size } from '../../lib/layout';
+  import {
+    isAllowedDialUrl,
+    normalizeDialUrl,
+    normalizeFaviconUrl,
+    type Dial,
+  } from '../../lib/schemas/dial';
   import type { Settings } from '../../lib/schemas/settings';
-  import type { Store } from '../../lib/schemas/store';
+  import {
+    createEmptyStore,
+    createPage,
+    getActiveDials,
+    getActivePage,
+    withActiveDials,
+    type Store,
+  } from '../../lib/schemas/store';
   import {
     createDebouncedSaver,
     getStore,
-    updateSettings,
   } from '../../lib/storage/repository';
+  import { STORAGE_KEYS } from '../../lib/storage/keys';
+  import { migrateStore, migrateStoreWithMeta } from '../../lib/storage/migrate';
+  import { createSeedDials } from '../../lib/dials/seed';
+  import {
+    dialsFromBookmarks,
+    listBookmarkCandidates,
+    requestBookmarksPermission,
+  } from '../../lib/dials/bookmarks';
+  import { t } from '../../lib/i18n';
+
+  const EDIT_HINT_KEY = 'msd-edit-hint-seen';
 
   let store = $state<Store | null>(null);
   let editMode = $state(false);
   let settingsOpen = $state(false);
   let editorOpen = $state(false);
   let editingDial = $state<Dial | null>(null);
-  let canvasSize = $state({ width: 1200, height: 800 });
+  let canvasSize = $state<Size>({ width: 1200, height: 800 });
+  let toastMessage = $state('');
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  let showEditHint = $state(false);
+  let searchOpen = $state(false);
+  let searchQuery = $state('');
+  let contextMenu = $state<{
+    dial: Dial;
+    x: number;
+    y: number;
+  } | null>(null);
 
-  const saver = createDebouncedSaver(200);
+  const activeDials = $derived(store ? getActiveDials(store) : []);
+
+  const saver = createDebouncedSaver(200, {
+    onError: () => {
+      showToast(t('saveFailed'));
+    },
+  });
+
+  function showToast(message: string) {
+    toastMessage = message;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastMessage = '';
+      toastTimer = undefined;
+    }, 4500);
+  }
+
+  function storesEqual(a: Store, b: Store): boolean {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  function applyBackground(settings: Settings) {
+    const root = document.documentElement;
+    const bg = settings.background;
+    if (bg.type === 'color') {
+      root.style.setProperty('--canvas-bg', bg.value);
+      root.style.setProperty('--canvas-bg-image', 'none');
+      root.style.setProperty('--canvas-bg-size', 'auto');
+      root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
+    } else {
+      root.style.setProperty('--canvas-bg', '#1a1d23');
+      root.style.setProperty('--canvas-bg-image', `url("${bg.value.replace(/"/g, '\\"')}")`);
+      if (bg.fit === 'tile') {
+        root.style.setProperty('--canvas-bg-size', 'auto');
+        root.style.setProperty('--canvas-bg-repeat', 'repeat');
+      } else if (bg.fit === 'contain') {
+        root.style.setProperty('--canvas-bg-size', 'contain');
+        root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
+      } else {
+        root.style.setProperty('--canvas-bg-size', 'cover');
+        root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
+      }
+    }
+  }
+
+  async function applyRemoteStore(next: Store) {
+    store = next;
+    applyBackground(next.settings);
+  }
+
+  async function reconcileFromStorage() {
+    try {
+      if (saver.hasPending()) {
+        await saver.flush();
+      }
+      const loaded = await getStore();
+      await applyRemoteStore(loaded.store);
+      if (loaded.droppedDialCount > 0) {
+        showToast(
+          loaded.droppedDialCount === 1
+            ? t('dialRemovedOne')
+            : t('dialRemovedMany', String(loaded.droppedDialCount)),
+        );
+      }
+    } catch {
+      showToast(t('syncFailed'));
+    }
+  }
+
+  function handleCommand(command: string) {
+    if (command === 'toggle-edit') {
+      toggleEdit();
+    } else if (command === 'add-dial') {
+      if (!editMode) toggleEdit();
+      openAddDial();
+    } else if (command === 'search-dials') {
+      searchOpen = true;
+    }
+  }
 
   onMount(() => {
+    try {
+      showEditHint = localStorage.getItem(EDIT_HINT_KEY) !== '1';
+    } catch {
+      showEditHint = true;
+    }
+
     void (async () => {
-      store = await getStore();
-      applyBackground(store.settings);
+      try {
+        const loaded = await getStore();
+        store = loaded.store;
+        applyBackground(loaded.store.settings);
+        if (loaded.droppedDialCount > 0) {
+          showToast(
+            loaded.droppedDialCount === 1
+              ? t('dialRemovedOne')
+              : t('dialRemovedMany', String(loaded.droppedDialCount)),
+          );
+        }
+      } catch {
+        showToast(t('loadFailed'));
+      }
     })();
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (contextMenu) {
+          contextMenu = null;
+          return;
+        }
+        if (searchOpen) {
+          searchOpen = false;
+          searchQuery = '';
+          return;
+        }
         if (editorOpen) {
           editorOpen = false;
           editingDial = null;
@@ -43,58 +183,102 @@
         }
         if (editMode) editMode = false;
       }
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === 'f' &&
+        !editorOpen &&
+        !settingsOpen
+      ) {
+        event.preventDefault();
+        searchOpen = true;
+      }
     };
     window.addEventListener('keydown', onKey);
 
-    const onResize = () => {
-      canvasSize = {
-        width: Math.max(
-          store?.settings.canvasMinWidth ?? 1200,
-          window.innerWidth,
-        ),
-        height: Math.max(
-          store?.settings.canvasMinHeight ?? 800,
-          window.innerHeight,
-        ),
-      };
+    const onStorageChanged = (
+      changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
+      areaName: string,
+    ) => {
+      if (areaName !== 'local') return;
+      const change = changes[STORAGE_KEYS.store];
+      if (!change || change.newValue === undefined) return;
+
+      void (async () => {
+        if (saver.hasPending()) {
+          await reconcileFromStorage();
+          return;
+        }
+        if (!store) return;
+        const remote = migrateStore(change.newValue);
+        if (storesEqual(store, remote)) return;
+        await applyRemoteStore(remote);
+      })();
     };
-    onResize();
-    window.addEventListener('resize', onResize);
+    browser.storage.onChanged.addListener(onStorageChanged);
+
+    const onMessage = (message: unknown) => {
+      if (
+        message &&
+        typeof message === 'object' &&
+        (message as { type?: string }).type === 'extension-command' &&
+        typeof (message as { command?: string }).command === 'string'
+      ) {
+        handleCommand((message as { command: string }).command);
+      }
+    };
+    browser.runtime.onMessage.addListener(onMessage);
 
     return () => {
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('resize', onResize);
-      void saver.flush();
+      browser.storage.onChanged.removeListener(onStorageChanged);
+      browser.runtime.onMessage.removeListener(onMessage);
+      if (toastTimer) clearTimeout(toastTimer);
+      void saver.flush().catch(() => {
+        // Error already toasted via onError.
+      });
     };
   });
-
-  function applyBackground(settings: Settings) {
-    document.documentElement.style.setProperty(
-      '--canvas-bg',
-      settings.background.value,
-    );
-  }
 
   async function persist(next: Store, immediate = true) {
     store = next;
     applyBackground(next.settings);
-    if (immediate) {
-      await saver.saveNow(next);
-    } else {
-      saver.schedule(next);
+    try {
+      if (immediate) {
+        await saver.saveNow(next);
+      } else {
+        saver.schedule(next);
+      }
+    } catch {
+      // onError toast already shown; leave in-memory store intact.
     }
   }
 
   function onDialsChange(dials: Dial[], opts?: { immediate?: boolean }) {
     if (!store) return;
-    void persist({ ...store, dials }, opts?.immediate ?? true);
+    void persist(withActiveDials(store, dials), opts?.immediate ?? true);
   }
 
-  async function onSettingsChange(partial: Partial<Settings>) {
+  function onSettingsChange(partial: Partial<Settings>) {
     if (!store) return;
-    const next = await updateSettings(partial);
-    store = next;
-    applyBackground(next.settings);
+    void persist(
+      {
+        ...store,
+        settings: { ...store.settings, ...partial },
+      },
+      false,
+    );
+  }
+
+  function toggleEdit() {
+    editMode = !editMode;
+    if (editMode && showEditHint) {
+      showEditHint = false;
+      try {
+        localStorage.setItem(EDIT_HINT_KEY, '1');
+      } catch {
+        // ignore
+      }
+    }
   }
 
   function openAddDial() {
@@ -121,14 +305,22 @@
   }) {
     if (!store) return;
 
+    const url = normalizeDialUrl(values.url);
+    if (!url || !isAllowedDialUrl(url)) {
+      showToast(t('invalidDialUrl'));
+      return;
+    }
+    const faviconUrl = normalizeFaviconUrl(values.faviconUrl);
+    const dials = getActiveDials(store);
+
     if (editingDial) {
-      const dials = store.dials.map((d) => {
+      const nextDials = dials.map((d) => {
         if (d.id !== editingDial!.id) return d;
         const next: Dial = {
           ...d,
           title: values.title,
-          url: values.url,
-          faviconUrl: values.faviconUrl,
+          url,
+          faviconUrl,
         };
         if (values.iconSize !== undefined) next.iconSize = values.iconSize;
         else delete next.iconSize;
@@ -136,10 +328,10 @@
         else delete next.fontSize;
         return next;
       });
-      await persist({ ...store, dials }, true);
+      await persist(withActiveDials(store, nextDials), true);
     } else {
       const slot = findFirstFreeSlot(
-        store.dials.map((d) => ({
+        dials.map((d) => ({
           x: d.x,
           y: d.y,
           width: d.width,
@@ -151,8 +343,8 @@
       const dial: Dial = {
         id: createId(),
         title: values.title,
-        url: values.url,
-        faviconUrl: values.faviconUrl,
+        url,
+        faviconUrl,
         ...(values.iconSize !== undefined
           ? { iconSize: values.iconSize }
           : {}),
@@ -161,40 +353,234 @@
           : {}),
         ...slot,
       };
-      await persist({ ...store, dials: [...store.dials, dial] }, true);
+      await persist(withActiveDials(store, [...dials, dial]), true);
     }
     closeEditor();
   }
 
-  async function deleteDial() {
+  async function deleteDialFromEditor() {
     if (!store || !editingDial) return;
-    const dials = store.dials.filter((d) => d.id !== editingDial!.id);
-    await persist({ ...store, dials }, true);
+    const dials = getActiveDials(store).filter((d) => d.id !== editingDial!.id);
+    await persist(withActiveDials(store, dials), true);
     closeEditor();
+  }
+
+  async function deleteDialById(dial: Dial) {
+    if (!store) return;
+    if (!confirm(t('confirmDeleteDial'))) return;
+    const dials = getActiveDials(store).filter((d) => d.id !== dial.id);
+    await persist(withActiveDials(store, dials), true);
+  }
+
+  function openDial(dial: Dial) {
+    if (!isAllowedDialUrl(dial.url)) return;
+    window.location.href = dial.url;
+  }
+
+  async function copyDialUrl(dial: Dial) {
+    try {
+      await navigator.clipboard.writeText(dial.url);
+      showToast(t('dialCopied'));
+    } catch {
+      showToast(t('copyFailed'));
+    }
+  }
+
+  function onDialContextMenu(dial: Dial, event: MouseEvent) {
+    event.preventDefault();
+    const pad = 8;
+    const menuW = 160;
+    const menuH = editMode ? 160 : 80;
+    const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
+    const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
+    contextMenu = { dial, x: Math.max(pad, x), y: Math.max(pad, y) };
+  }
+
+  function selectPage(pageId: string) {
+    if (!store || pageId === store.activePageId) return;
+    void persist({ ...store, activePageId: pageId }, true);
+  }
+
+  function addPage() {
+    if (!store) return;
+    const page = createPage([], `Page ${store.pages.length + 1}`, createId());
+    void persist(
+      {
+        ...store,
+        pages: [...store.pages, page],
+        activePageId: page.id,
+      },
+      true,
+    );
+  }
+
+  function renamePage(pageId: string) {
+    if (!store) return;
+    const page = store.pages.find((p) => p.id === pageId);
+    if (!page) return;
+    const name = prompt(t('renamePage'), page.name)?.trim();
+    if (!name) return;
+    void persist(
+      {
+        ...store,
+        pages: store.pages.map((p) =>
+          p.id === pageId ? { ...p, name } : p,
+        ),
+      },
+      true,
+    );
+  }
+
+  function deletePage(pageId: string) {
+    if (!store || store.pages.length <= 1) return;
+    if (!confirm(t('confirmDeletePage'))) return;
+    const pages = store.pages.filter((p) => p.id !== pageId);
+    const activePageId =
+      store.activePageId === pageId ? pages[0]!.id : store.activePageId;
+    void persist({ ...store, pages, activePageId }, true);
+  }
+
+  function exportStore() {
+    if (!store) return;
+    try {
+      const blob = new Blob([JSON.stringify(store, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my-speed-dial-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast(t('exportFailed'));
+    }
+  }
+
+  async function importStoreFile(file: File) {
+    try {
+      const text = await file.text();
+      const raw = JSON.parse(text) as unknown;
+      const migrated = migrateStoreWithMeta(raw);
+      // Force persist even if parse reports unrepaired (import always writes).
+      await persist(migrated.store, true);
+      showToast(
+        migrated.droppedDialCount > 0
+          ? `${t('importSuccess')} ${
+              migrated.droppedDialCount === 1
+                ? t('dialRemovedOne')
+                : t('dialRemovedMany', String(migrated.droppedDialCount))
+            }`
+          : t('importSuccess'),
+      );
+      settingsOpen = false;
+    } catch {
+      showToast(t('importFailed'));
+    }
+  }
+
+  async function resetStore() {
+    if (!confirm(t('confirmReset'))) return;
+    const next = createEmptyStore(createSeedDials());
+    await persist(next, true);
+    showToast(t('resetDone'));
+    settingsOpen = false;
+  }
+
+  async function importBookmarks() {
+    if (!store) return;
+    const allowed = await requestBookmarksPermission();
+    if (!allowed) {
+      showToast(t('bookmarksPermission'));
+      return;
+    }
+    try {
+      const bookmarks = await listBookmarkCandidates();
+      if (bookmarks.length === 0) {
+        showToast(t('bookmarksNone'));
+        return;
+      }
+      const existing = getActiveDials(store);
+      const existingUrls = new Set(existing.map((d) => d.url));
+      const fresh = bookmarks.filter((b) => !existingUrls.has(b.url));
+      if (fresh.length === 0) {
+        showToast(t('bookmarksNone'));
+        return;
+      }
+      const nextDials = dialsFromBookmarks(
+        fresh,
+        existing,
+        store.settings.gridSize,
+        canvasSize,
+      );
+      const added = nextDials.length - existing.length;
+      await persist(withActiveDials(store, nextDials), true);
+      showToast(t('bookmarksImported', String(added)));
+      settingsOpen = false;
+    } catch {
+      showToast(t('bookmarksPermission'));
+    }
+  }
+
+  function canvasBackgroundStyle(): string {
+    if (!store) return 'var(--canvas-bg)';
+    const bg = store.settings.background;
+    if (bg.type === 'color') return bg.value;
+    return 'var(--canvas-bg)';
   }
 </script>
 
 {#if store}
   <div
     class="relative h-full w-full"
-    style:background="var(--canvas-bg)"
+    style:background={canvasBackgroundStyle()}
+    style:background-image="var(--canvas-bg-image)"
+    style:background-size="var(--canvas-bg-size, cover)"
+    style:background-repeat="var(--canvas-bg-repeat, no-repeat)"
+    style:background-position="center"
   >
     <EditToolbar
       {editMode}
-      onToggleEdit={() => (editMode = !editMode)}
+      {showEditHint}
+      onToggleEdit={toggleEdit}
       onAddDial={openAddDial}
       onOpenSettings={() => (settingsOpen = true)}
+      onOpenSearch={() => (searchOpen = true)}
+    />
+
+    <DialSearchOverlay
+      open={searchOpen}
+      query={searchQuery}
+      onQueryChange={(value) => (searchQuery = value)}
+      onClose={() => {
+        searchOpen = false;
+        searchQuery = '';
+      }}
     />
 
     <main class="h-full w-full">
       <DialCanvas
-        dials={store.dials}
+        dials={activeDials}
         settings={store.settings}
         {editMode}
+        searchQuery={searchOpen ? searchQuery : ''}
         {onDialsChange}
         onEditDial={openEditDial}
+        onCanvasSizeChange={(size) => (canvasSize = size)}
+        onContextMenu={onDialContextMenu}
+        onAddDial={openAddDial}
       />
     </main>
+
+    <PageTabs
+      pages={store.pages}
+      activePageId={getActivePage(store).id}
+      {editMode}
+      onSelect={selectPage}
+      onAdd={addPage}
+      onRename={renamePage}
+      onDelete={deletePage}
+    />
 
     <DialEditorModal
       open={editorOpen}
@@ -203,7 +589,7 @@
       globalFontSize={store.settings.fontSize}
       onClose={closeEditor}
       onSave={saveDial}
-      onDelete={editingDial ? deleteDial : undefined}
+      onDelete={editingDial ? deleteDialFromEditor : undefined}
     />
 
     <SettingsPanel
@@ -211,12 +597,40 @@
       settings={store.settings}
       onClose={() => (settingsOpen = false)}
       onChange={onSettingsChange}
+      onExport={exportStore}
+      onImportFile={importStoreFile}
+      onReset={resetStore}
+      onImportBookmarks={importBookmarks}
     />
+
+    <DialContextMenu
+      dial={contextMenu?.dial ?? null}
+      x={contextMenu?.x ?? 0}
+      y={contextMenu?.y ?? 0}
+      {editMode}
+      onClose={() => (contextMenu = null)}
+      onEdit={openEditDial}
+      onDelete={deleteDialById}
+      onOpen={openDial}
+      onCopyUrl={copyDialUrl}
+    />
+
+    {#if toastMessage}
+      <div
+        class="pointer-events-none fixed bottom-16 left-1/2 z-[60] max-w-sm -translate-x-1/2 rounded-lg px-4 py-2 text-center text-sm shadow-lg"
+        style:background="var(--toolbar-bg)"
+        style:border="1px solid var(--dial-border)"
+        style:color="var(--dial-title)"
+        role="status"
+      >
+        {toastMessage}
+      </div>
+    {/if}
   </div>
 {:else}
   <div
     class="flex h-full items-center justify-center text-sm text-[var(--text-muted)]"
   >
-    Loading…
+    {t('loading')}
   </div>
 {/if}
