@@ -24,57 +24,64 @@
 </script>
 
 <div
-  class="pointer-events-none absolute bottom-0 left-0 right-0 z-30 flex justify-center p-3"
+  class="group/pages pointer-events-none absolute bottom-0 left-0 right-0 z-30 flex justify-center"
 >
   <div
-    class="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-lg px-2 py-1.5"
-    style:background="var(--toolbar-bg)"
-    style:border="1px solid var(--dial-border)"
-    role="tablist"
-    aria-label={t('pages')}
-  >
-    {#each pages as page (page.id)}
-      <button
-        type="button"
-        class="shrink-0 rounded-md px-3 py-1 text-sm transition-colors"
-        style:background={page.id === activePageId
-          ? 'rgba(107, 143, 113, 0.25)'
-          : 'transparent'}
-        style:color={page.id === activePageId
-          ? 'var(--accent)'
-          : 'var(--dial-title)'}
-        role="tab"
-        aria-selected={page.id === activePageId}
-        onclick={() => onSelect(page.id)}
-        ondblclick={() => {
-          if (editMode) onRename(page.id);
-        }}
-      >
-        {page.name}
-      </button>
-    {/each}
+    class="pointer-events-auto absolute bottom-0 left-1/2 h-28 w-80 -translate-x-1/2"
+    aria-hidden="true"
+  ></div>
 
-    {#if editMode}
-      <button
-        type="button"
-        class="shrink-0 rounded-md px-2 py-1 text-sm"
-        style:color="var(--accent)"
-        title={t('addPage')}
-        onclick={onAdd}
-      >
-        +
-      </button>
-      {#if pages.length > 1}
+  <div class="relative z-10 p-3">
+    <div
+      class="pointer-events-none flex max-w-full items-center gap-1 overflow-x-auto rounded-lg px-2 py-1.5 opacity-0 transition-opacity group-hover/pages:pointer-events-auto group-hover/pages:opacity-100 group-focus-within/pages:pointer-events-auto group-focus-within/pages:opacity-100"
+      style:background="var(--toolbar-bg)"
+      style:border="1px solid var(--dial-border)"
+      role="tablist"
+      aria-label={t('pages')}
+    >
+      {#each pages as page (page.id)}
         <button
           type="button"
-          class="shrink-0 rounded-md px-2 py-1 text-xs"
-          style:color="var(--danger)"
-          title={t('deletePage')}
-          onclick={() => onDelete(activePageId)}
+          class="shrink-0 rounded-md px-3 py-1 text-sm transition-colors"
+          style:background={page.id === activePageId
+            ? 'rgba(107, 143, 113, 0.25)'
+            : 'transparent'}
+          style:color={page.id === activePageId
+            ? 'var(--accent)'
+            : 'var(--dial-title)'}
+          role="tab"
+          aria-selected={page.id === activePageId}
+          onclick={() => onSelect(page.id)}
+          ondblclick={() => {
+            if (editMode) onRename(page.id);
+          }}
         >
-          ×
+          {page.name}
         </button>
+      {/each}
+
+      {#if editMode}
+        <button
+          type="button"
+          class="shrink-0 rounded-md px-2 py-1 text-sm"
+          style:color="var(--accent)"
+          title={t('addPage')}
+          onclick={onAdd}
+        >
+          +
+        </button>
+        {#if pages.length > 1}
+          <button
+            type="button"
+            class="shrink-0 rounded-md px-2 py-1 text-xs"
+            style:color="var(--danger)"
+            title={t('deletePage')}
+            onclick={() => onDelete(activePageId)}
+          >
+            ×
+          </button>
+        {/if}
       {/if}
-    {/if}
+    </div>
   </div>
 </div>

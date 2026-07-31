@@ -26,6 +26,12 @@
 </script>
 
 {#if open}
+  <button
+    type="button"
+    class="pointer-events-auto absolute inset-0 z-30 cursor-default border-0 bg-transparent p-0"
+    aria-label={t('close')}
+    onclick={onClose}
+  ></button>
   <div
     class="pointer-events-none absolute top-16 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4"
   >
