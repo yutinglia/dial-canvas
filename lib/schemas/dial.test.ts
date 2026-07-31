@@ -3,8 +3,10 @@ import {
   ALLOWED_DIAL_PROTOCOLS,
   DEFAULT_DIAL_BACKGROUND_COLOR,
   DEFAULT_DIAL_BACKGROUND_OPACITY,
+  DIAL_BACKGROUND_HOVER_ALPHA_DELTA,
   MAX_FAVICON_DATA_URL_LENGTH,
   dialBackgroundCss,
+  dialBackgroundHoverCss,
   isAllowedDialUrl,
   isAllowedFaviconUrl,
   isDialBackgroundColor,
@@ -96,5 +98,32 @@ describe('dial background color / opacity', () => {
     );
     expect(DEFAULT_DIAL_BACKGROUND_COLOR).toBe('#14161c');
     expect(dialBackgroundCss('#00ff00', 0.25)).toBe('rgba(0, 255, 0, 0.25)');
+  });
+
+  it('dialBackgroundHoverCss uses CSS default when unset', () => {
+    expect(dialBackgroundHoverCss()).toBeUndefined();
+    expect(dialBackgroundHoverCss(undefined, undefined)).toBeUndefined();
+  });
+
+  it('dialBackgroundHoverCss bumps alpha by the default hover delta', () => {
+    expect(DIAL_BACKGROUND_HOVER_ALPHA_DELTA).toBe(0.13);
+    expect(dialBackgroundHoverCss('#ff0000')).toBe(
+      `rgba(255, 0, 0, ${DEFAULT_DIAL_BACKGROUND_OPACITY + DIAL_BACKGROUND_HOVER_ALPHA_DELTA})`,
+    );
+    expect(dialBackgroundHoverCss(undefined, 0.5)).toBe(
+      'rgba(20, 22, 28, 0.63)',
+    );
+    expect(dialBackgroundHoverCss('#00ff00', 0.25)).toBe(
+      'rgba(0, 255, 0, 0.38)',
+    );
+  });
+
+  it('dialBackgroundHoverCss clamps alpha at 1', () => {
+    expect(dialBackgroundHoverCss('#abcdef', 0.95)).toBe(
+      'rgba(171, 205, 239, 1)',
+    );
+    expect(dialBackgroundHoverCss('#abcdef', 1)).toBe(
+      'rgba(171, 205, 239, 1)',
+    );
   });
 });

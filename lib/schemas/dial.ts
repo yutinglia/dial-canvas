@@ -12,6 +12,9 @@ export const DEFAULT_DIAL_BACKGROUND_COLOR = '#14161c';
 /** Default alpha used when composing a custom dial background. */
 export const DEFAULT_DIAL_BACKGROUND_OPACITY = 0.72;
 
+/** Alpha bump from rest → hover, matching `--dial-bg` (0.72) → `--dial-bg-hover` (0.85). */
+export const DIAL_BACKGROUND_HOVER_ALPHA_DELTA = 0.13;
+
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 export function isAllowedDialUrl(value: string): boolean {
@@ -108,6 +111,24 @@ export function dialBackgroundCss(
   const rgb = hexToRgb(hex);
   if (!rgb) return undefined;
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
+
+/**
+ * Compose the hover rgba() for a custom dial background.
+ * Returns undefined so the CSS `--dial-bg-hover` default applies.
+ */
+export function dialBackgroundHoverCss(
+  color?: string,
+  opacity?: number,
+): string | undefined {
+  if (color === undefined && opacity === undefined) return undefined;
+  const hex = normalizeDialBackgroundColor(color) ?? DEFAULT_DIAL_BACKGROUND_COLOR;
+  const alpha =
+    normalizeDialBackgroundOpacity(opacity) ?? DEFAULT_DIAL_BACKGROUND_OPACITY;
+  const rgb = hexToRgb(hex);
+  if (!rgb) return undefined;
+  const hoverAlpha = Math.min(1, alpha + DIAL_BACKGROUND_HOVER_ALPHA_DELTA);
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${hoverAlpha})`;
 }
 
 const dialUrlString = z.string().refine(isAllowedDialUrl, {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { dialBackgroundCss } from '../lib/schemas/dial';
+  import { dialBackgroundCss, dialBackgroundHoverCss } from '../lib/schemas/dial';
   import type { Background } from '../lib/schemas/settings';
   import type { Widget } from '../lib/schemas/widget';
   import { t } from '../lib/i18n';
@@ -57,6 +57,9 @@
 
   const customBackground = $derived(
     dialBackgroundCss(widget.backgroundColor, widget.backgroundOpacity),
+  );
+  const customBackgroundHover = $derived(
+    dialBackgroundHoverCss(widget.backgroundColor, widget.backgroundOpacity),
   );
 
   const cursor = $derived(
@@ -146,9 +149,9 @@
     style:top="{widget.y}px"
     style:width="{widget.width}px"
     style:height="{widget.height}px"
-    style:background={preview
-      ? 'rgba(107, 143, 113, 0.18)'
-      : customBackground}
+    style:background={preview ? 'rgba(107, 143, 113, 0.18)' : undefined}
+    style:--dial-bg={preview ? undefined : customBackground}
+    style:--dial-bg-hover={preview ? undefined : customBackgroundHover}
     style:border-color={preview ? 'var(--accent)' : undefined}
     style:opacity={dimmed ? 0.28 : preview ? 0.85 : 1}
     style:box-shadow={selected ? '0 0 0 1px var(--accent)' : 'none'}
@@ -211,7 +214,8 @@
     style:top="{widget.y}px"
     style:width="{widget.width}px"
     style:height="{widget.height}px"
-    style:background={customBackground}
+    style:--dial-bg={customBackground}
+    style:--dial-bg-hover={customBackgroundHover}
     style:opacity={dimmed ? 0.28 : 1}
     style:cursor={cursor}
     role="group"
