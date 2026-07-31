@@ -241,6 +241,8 @@
     style:cursor={cursor}
     href={dial.url}
     rel="noopener noreferrer"
+    draggable="false"
+    ondragstart={(e) => e.preventDefault()}
     oncontextmenu={(e) => onContextMenu(dial, e)}
   >
     {@render dialBody()}
