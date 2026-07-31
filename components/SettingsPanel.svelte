@@ -9,6 +9,7 @@
     BingWallpaperItem,
     BingWallpaperListResult,
   } from '../lib/dials/bingWallpaper';
+  import type { SyncStatus } from '../lib/storage/firefoxSync';
   import { t } from '../lib/i18n';
 
   type WallpaperSource = 'color' | 'url' | 'upload' | 'bing';
@@ -16,6 +17,9 @@
   interface Props {
     open: boolean;
     settings: Settings;
+    syncEnabled: boolean;
+    syncStatus: SyncStatus;
+    syncBusy: boolean;
     onClose: () => void;
     onChange: (
       partial: Partial<Settings>,
@@ -32,12 +36,16 @@
       item: BingWallpaperItem,
       options: { locked: boolean },
     ) => void | Promise<void>;
+    onSyncEnabledChange: (enabled: boolean) => void;
     onToast: (message: string) => void;
   }
 
   let {
     open,
     settings,
+    syncEnabled,
+    syncStatus,
+    syncBusy,
     onClose,
     onChange,
     onExport,
@@ -48,6 +56,7 @@
     onRefreshBing,
     onLoadBingList,
     onSelectBingWallpaper,
+    onSyncEnabledChange,
     onToast,
   }: Props = $props();
 
@@ -436,6 +445,29 @@
     endSliderDrag();
     updateCanvasMinHeight(canvasMinHeightLocal, true);
   }
+
+  function formatSyncTime(epochMs: number | undefined): string {
+    if (!epochMs) return '';
+    try {
+      return new Date(epochMs).toLocaleString();
+    } catch {
+      return '';
+    }
+  }
+
+  const syncStatusLabel = $derived.by(() => {
+    if (syncBusy) return t('firefoxSyncBusy');
+    if (syncStatus.lastError === 'quota' || syncStatus.lastError === 'oversized') {
+      return t('firefoxSyncQuotaError');
+    }
+    if (syncStatus.lastError === 'unknown') {
+      return t('firefoxSyncFailed');
+    }
+    if (!syncEnabled) return t('firefoxSyncOffHint');
+    const at = syncStatus.lastPullAt ?? syncStatus.lastPushAt;
+    if (at) return t('firefoxSyncLastSynced', formatSyncTime(at));
+    return t('firefoxSyncEnabledHint');
+  });
 
   function resetLocale() {
     onChange({ locale: DEFAULT_SETTINGS.locale }, { immediate: true });
@@ -1100,6 +1132,32 @@
           >
             {t('settingsSectionData')}
           </h3>
+          <div class="mb-4">
+            <label class="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                class="mt-0.5"
+                checked={syncEnabled}
+                disabled={syncBusy}
+                onchange={(e) =>
+                  onSyncEnabledChange(
+                    (e.currentTarget as HTMLInputElement).checked,
+                  )
+                }
+              />
+              <span>
+                <span class="block">{t('firefoxSyncEnable')}</span>
+                <span
+                  class="mt-1 block text-xs text-[var(--text-muted)]"
+                >
+                  {t('firefoxSyncHint')}
+                </span>
+              </span>
+            </label>
+            <p class="mt-2 text-xs text-[var(--text-muted)]">
+              {syncStatusLabel}
+            </p>
+          </div>
           <div class="mb-3 flex flex-wrap gap-2">
             <button
               type="button"

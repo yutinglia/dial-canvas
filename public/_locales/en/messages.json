@@ -410,6 +410,39 @@
   "settingsSectionData": {
     "message": "Data"
   },
+  "firefoxSyncEnable": {
+    "message": "Sync with Firefox Account"
+  },
+  "firefoxSyncHint": {
+    "message": "Keeps dials, widgets, and settings in sync across devices. Custom uploaded wallpapers and large favicons are not synced — use Export JSON for a full backup."
+  },
+  "firefoxSyncOffHint": {
+    "message": "Sync is off. Enable to use Firefox Sync."
+  },
+  "firefoxSyncEnabledHint": {
+    "message": "Sync is on. Waiting for the first push…"
+  },
+  "firefoxSyncLastSynced": {
+    "message": "Last synced: $1"
+  },
+  "firefoxSyncBusy": {
+    "message": "Updating sync…"
+  },
+  "firefoxSyncQuotaError": {
+    "message": "Layout is too large for Firefox Sync. Remove some dials/widgets or use Export JSON."
+  },
+  "firefoxSyncFailed": {
+    "message": "Could not sync with Firefox Account."
+  },
+  "firefoxSyncPulled": {
+    "message": "Restored layout from Firefox Sync."
+  },
+  "firefoxSyncPushed": {
+    "message": "Layout saved to Firefox Sync."
+  },
+  "firefoxSyncDisabled": {
+    "message": "Firefox Sync turned off."
+  },
   "optionsStepUseSettingsBefore": {
     "message": "Use"
   },

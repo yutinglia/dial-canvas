@@ -74,10 +74,12 @@ describe('setStore write queue', () => {
 
     const originalSet = browser.storage.local.set.bind(browser.storage.local);
     vi.spyOn(browser.storage.local, 'set').mockImplementation(async (items) => {
-      const store = (items as Record<string, Store>)[STORAGE_KEYS.store]!;
-      const title = getActiveDials(store)[0]?.title ?? '';
-      order.push(title);
-      if (title === 'First') await firstGate;
+      const store = (items as Record<string, Store>)[STORAGE_KEYS.store];
+      if (store) {
+        const title = getActiveDials(store)[0]?.title ?? '';
+        order.push(title);
+        if (title === 'First') await firstGate;
+      }
       return originalSet(items);
     });
 

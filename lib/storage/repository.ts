@@ -8,6 +8,13 @@ import {
 import { STORAGE_KEYS } from './keys';
 import { migrateStoreWithMeta } from './migrate';
 import { createSeedDials } from '../dials/seed';
+import {
+  getSyncEnabled,
+  noteLocalWriteForSync,
+  readRemoteSyncStore,
+  registerSyncPersist,
+  type SetStoreOptions,
+} from './firefoxSync';
 
 export type LoadStoreResult = {
   store: Store;
@@ -34,6 +41,23 @@ export async function getStore(): Promise<LoadStoreResult> {
   const raw = result[STORAGE_KEYS.store];
 
   if (raw === undefined) {
+    // Prefer a newer Firefox Sync payload over seed dials when sync is on.
+    if (await getSyncEnabled()) {
+      const remote = await readRemoteSyncStore();
+      if (remote) {
+        await setStore(remote.store, {
+          skipSyncPush: true,
+          updatedAt: remote.updatedAt,
+        });
+        return {
+          store: remote.store,
+          droppedDialCount: remote.droppedDialCount,
+          droppedWidgetCount: remote.droppedWidgetCount,
+          repaired: remote.repaired,
+        };
+      }
+    }
+
     const seeded = createEmptyStore(createSeedDials());
     await setStore(seeded);
     return {
@@ -56,14 +80,20 @@ export async function getStore(): Promise<LoadStoreResult> {
   };
 }
 
-export async function setStore(store: Store): Promise<void> {
+export async function setStore(
+  store: Store,
+  options: SetStoreOptions = {},
+): Promise<void> {
   // Svelte 5 $state wraps objects in Proxies; storage.local uses structured
   // clone and throws DataCloneError on Proxies. Store is plain JSON.
   const plain = JSON.parse(JSON.stringify(store)) as Store;
   await enqueueWrite(async () => {
     await browser.storage.local.set({ [STORAGE_KEYS.store]: plain });
   });
+  await noteLocalWriteForSync(plain, options);
 }
+
+registerSyncPersist(setStore);
 
 /**
  * Apply dial updates against an in-memory base store (never re-reads storage).

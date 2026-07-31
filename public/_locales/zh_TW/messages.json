@@ -410,6 +410,39 @@
   "settingsSectionData": {
     "message": "資料"
   },
+  "firefoxSyncEnable": {
+    "message": "透過 Firefox 帳號同步"
+  },
+  "firefoxSyncHint": {
+    "message": "在裝置間同步撥號、小工具與設定。自行上傳的桌布與大型 favicon 不會同步——完整備份請使用匯出 JSON。"
+  },
+  "firefoxSyncOffHint": {
+    "message": "同步已關閉。啟用後即可使用 Firefox Sync。"
+  },
+  "firefoxSyncEnabledHint": {
+    "message": "同步已開啟。等待首次上傳…"
+  },
+  "firefoxSyncLastSynced": {
+    "message": "上次同步：$1"
+  },
+  "firefoxSyncBusy": {
+    "message": "正在更新同步…"
+  },
+  "firefoxSyncQuotaError": {
+    "message": "版面太大，無法放入 Firefox Sync。請減少撥號／小工具，或改用匯出 JSON。"
+  },
+  "firefoxSyncFailed": {
+    "message": "無法與 Firefox 帳號同步。"
+  },
+  "firefoxSyncPulled": {
+    "message": "已從 Firefox Sync 還原版面。"
+  },
+  "firefoxSyncPushed": {
+    "message": "版面已儲存至 Firefox Sync。"
+  },
+  "firefoxSyncDisabled": {
+    "message": "已關閉 Firefox Sync。"
+  },
   "optionsStepUseSettingsBefore": {
     "message": "使用"
   },

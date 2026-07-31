@@ -49,6 +49,15 @@
   } from '../../lib/storage/repository';
   import { STORAGE_KEYS } from '../../lib/storage/keys';
   import { migrateStore, migrateStoreWithMeta } from '../../lib/storage/migrate';
+  import {
+    flushPendingSyncPush,
+    getSyncEnabled,
+    getSyncStatus,
+    handleSyncStorageChanged,
+    mergeFromSync,
+    setSyncEnabled,
+    type SyncStatus,
+  } from '../../lib/storage/firefoxSync';
   import { createSeedDials } from '../../lib/dials/seed';
   import {
     dialsFromBookmarks,
@@ -71,6 +80,9 @@
   const EDIT_HINT_KEY = 'msd-edit-hint-seen';
 
   let store = $state<Store | null>(null);
+  let syncEnabled = $state(false);
+  let syncStatus = $state<SyncStatus>({});
+  let syncBusy = $state(false);
   let editMode = $state(false);
   let settingsOpen = $state(false);
   let editorOpen = $state(false);
@@ -310,6 +322,11 @@
     }
   }
 
+  async function refreshSyncUiState() {
+    syncEnabled = await getSyncEnabled();
+    syncStatus = await getSyncStatus();
+  }
+
   async function reconcileFromStorage() {
     try {
       if (saver.hasPending()) {
@@ -320,6 +337,32 @@
       notifyDroppedItems(loaded.droppedDialCount, loaded.droppedWidgetCount);
     } catch {
       showToast(t('syncFailed'));
+    }
+  }
+
+  async function onSyncEnabledChange(enabled: boolean) {
+    if (!store || syncBusy) return;
+    syncBusy = true;
+    try {
+      const result = await setSyncEnabled(enabled, store);
+      await refreshSyncUiState();
+      if (result.action === 'applied') {
+        await applyRemoteStore(result.store);
+        notifyDroppedItems(result.droppedDialCount, result.droppedWidgetCount);
+        showToast(t('firefoxSyncPulled'));
+      } else if (result.action === 'pushed') {
+        showToast(t('firefoxSyncPushed'));
+      } else if (result.action === 'disabled') {
+        showToast(t('firefoxSyncDisabled'));
+      } else if (result.action === 'error') {
+        showToast(t('firefoxSyncFailed'));
+      }
+      await refreshSyncUiState();
+    } catch {
+      showToast(t('firefoxSyncFailed'));
+      await refreshSyncUiState();
+    } finally {
+      syncBusy = false;
     }
   }
 
@@ -343,6 +386,7 @@
 
     void (async () => {
       try {
+        await refreshSyncUiState();
         const loaded = await getStore();
         setLocalePreference(loaded.store.settings.locale);
         store = loaded.store;
@@ -351,6 +395,17 @@
           void ensureBingWallpaper(false);
         }
         notifyDroppedItems(loaded.droppedDialCount, loaded.droppedWidgetCount);
+
+        // Local already present: still pull if Firefox Sync has a newer revision.
+        const merged = await mergeFromSync();
+        if (merged.action === 'applied') {
+          await applyRemoteStore(merged.store);
+          notifyDroppedItems(
+            merged.droppedDialCount,
+            merged.droppedWidgetCount,
+          );
+        }
+        await refreshSyncUiState();
       } catch {
         showToast(t('loadFailed'));
       }
@@ -415,6 +470,7 @@
       void saver.flush().catch(() => {
         // Error already toasted via onError.
       });
+      void flushPendingSyncPush();
     };
 
     const onPageHide = () => {
@@ -430,7 +486,30 @@
       changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
       areaName: string,
     ) => {
+      if (areaName === 'sync') {
+        void (async () => {
+          const result = await handleSyncStorageChanged(changes);
+          if (result.action === 'applied') {
+            await applyRemoteStore(result.store);
+            notifyDroppedItems(
+              result.droppedDialCount,
+              result.droppedWidgetCount,
+            );
+          }
+          await refreshSyncUiState();
+        })();
+        return;
+      }
+
       if (areaName !== 'local') return;
+
+      if (
+        STORAGE_KEYS.syncEnabled in changes ||
+        STORAGE_KEYS.syncStatus in changes
+      ) {
+        void refreshSyncUiState();
+      }
+
       const change = changes[STORAGE_KEYS.store];
       if (!change || change.newValue === undefined) return;
 
@@ -1245,6 +1324,9 @@
     <SettingsPanel
       open={settingsOpen}
       settings={store.settings}
+      {syncEnabled}
+      {syncStatus}
+      {syncBusy}
       onClose={closeSettings}
       onChange={onSettingsChange}
       onExport={exportStore}
@@ -1255,6 +1337,7 @@
       onRefreshBing={onRefreshBingWallpaper}
       onLoadBingList={onLoadBingWallpaperList}
       onSelectBingWallpaper={onSelectBingWallpaper}
+      onSyncEnabledChange={onSyncEnabledChange}
       onToast={showToast}
     />
 
