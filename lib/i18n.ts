@@ -23,8 +23,35 @@ const CATALOGS: Record<'en' | 'zh_TW', Record<string, string>> = {
 /** Active override catalog; `null` means follow the browser UI locale. */
 let activeCatalog: Record<string, string> | null = null;
 
+/** Active locale preference; `system` means follow the browser UI locale. */
+let activePreference: LocalePreference = 'system';
+
+const INTL_LOCALES: Record<'en' | 'zh_TW', string> = {
+  en: 'en',
+  zh_TW: 'zh-TW',
+};
+
 export function setLocalePreference(preference: LocalePreference): void {
+  activePreference = preference;
   activeCatalog = preference === 'system' ? null : CATALOGS[preference];
+}
+
+/**
+ * BCP 47 tag for Intl date/time formatting.
+ * Returns `undefined` when following the runtime/browser locale.
+ */
+export function getIntlLocale(): string | undefined {
+  if (activePreference !== 'system') return INTL_LOCALES[activePreference];
+  try {
+    const getUILanguage = browser.i18n?.getUILanguage?.bind(browser.i18n) as
+      | (() => string)
+      | undefined;
+    const ui = getUILanguage?.();
+    if (ui) return ui.replaceAll('_', '-');
+  } catch {
+    // fall through
+  }
+  return undefined;
 }
 
 const FALLBACKS: Record<string, string> = {

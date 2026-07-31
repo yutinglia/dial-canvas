@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatClockDate, formatClockTime } from './clock';
+import { getIntlLocale, setLocalePreference } from '../i18n';
 
 describe('formatClockTime', () => {
   const date = new Date(2026, 7, 1, 14, 5, 9);
@@ -28,8 +29,26 @@ describe('formatClockTime', () => {
 });
 
 describe('formatClockDate', () => {
-  it('formats a short weekday/month/day string', () => {
-    const date = new Date(2026, 7, 1, 12, 0, 0);
-    expect(formatClockDate(date, 'en-US')).toBe('Sat, Aug 1');
+  const date = new Date(2026, 7, 1, 12, 0, 0);
+
+  it('formats a short weekday/month/day string in English', () => {
+    expect(formatClockDate(date, 'en')).toBe('Sat, Aug 1');
+  });
+
+  it('formats a short weekday/month/day string in Traditional Chinese', () => {
+    const text = formatClockDate(date, 'zh-TW');
+    expect(text).toMatch(/週六|星期六/);
+    expect(text).toMatch(/8月/);
+    expect(text).toMatch(/1/);
+  });
+});
+
+describe('getIntlLocale', () => {
+  it('maps explicit preferences to BCP 47 tags', () => {
+    setLocalePreference('en');
+    expect(getIntlLocale()).toBe('en');
+    setLocalePreference('zh_TW');
+    expect(getIntlLocale()).toBe('zh-TW');
+    setLocalePreference('system');
   });
 });

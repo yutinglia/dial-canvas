@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { getIntlLocale } from '../../lib/i18n';
   import { formatClockDate, formatClockTime } from '../../lib/widgets/clock';
   import type { ClockWidget } from '../../lib/schemas/widget';
 
@@ -37,7 +38,7 @@
       showSeconds: widget.showSeconds,
     }),
   );
-  const dateText = $derived(formatClockDate(now));
+  const dateText = $derived(formatClockDate(now, getIntlLocale()));
   const timeFontSize = $derived(
     widget.fontSize !== undefined
       ? `${widget.fontSize}px`

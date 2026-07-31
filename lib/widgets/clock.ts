@@ -28,7 +28,7 @@ export function formatClockTime(
 }
 
 /** Format a short date string for the clock widget (e.g. Sat, Aug 1). */
-export function formatClockDate(date: Date, locale = 'en-US'): string {
+export function formatClockDate(date: Date, locale?: string): string {
   return date.toLocaleDateString(locale, {
     weekday: 'short',
     month: 'short',
