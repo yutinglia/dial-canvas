@@ -203,7 +203,7 @@
         src={favicon}
         alt=""
         draggable="false"
-        class="max-h-[40%] min-h-0 shrink rounded-sm object-contain select-none"
+        class="max-h-[40%] min-h-0 shrink rounded-sm object-contain"
         style="width: {iconSize}px; height: {iconSize}px; -webkit-user-drag: none"
         loading="lazy"
         onerror={(e) => {
@@ -212,7 +212,7 @@
       />
     {/if}
     <span
-      class="shrink-0 line-clamp-2 select-none leading-snug text-[var(--dial-title)]"
+      class="shrink-0 line-clamp-2 leading-snug text-[var(--dial-title)]"
       style:font-size="{fontSize}px"
     >
       {dial.title}
