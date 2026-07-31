@@ -61,6 +61,7 @@ const FALLBACKS: Record<string, string> = {
   backgroundBingRefresh: 'Refresh today',
   backgroundBingLoading: 'Loading recent wallpapers…',
   backgroundBingListFailed: 'Could not load recent Bing wallpapers.',
+  backgroundBingRetry: 'Retry',
   backgroundBingToday: 'Today',
   wallpaperUploading: 'Uploading…',
   wallpaperUploadActive: 'Custom image is active.',

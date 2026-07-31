@@ -189,6 +189,9 @@
   "backgroundBingListFailed": {
     "message": "Could not load recent Bing wallpapers."
   },
+  "backgroundBingRetry": {
+    "message": "Retry"
+  },
   "backgroundBingToday": {
     "message": "Today"
   },

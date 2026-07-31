@@ -57,6 +57,7 @@
   let bingListLoading = $state(false);
   let bingListError = $state('');
   let bingListLoaded = $state(false);
+  let bingListLoadId = 0;
 
   function currentFit(): 'cover' | 'contain' | 'tile' {
     const bg = settings.background;
@@ -90,17 +91,23 @@
     }
   });
 
+  // Load only after Bing is persisted (permission already handled by onSelectBing).
+  // Using `source === 'bing'` alone races ahead of the permission prompt and a
+  // failed early fetch can overwrite a later successful one.
   $effect(() => {
     if (!open || source !== 'bing') return;
+    if (settings.background.type !== 'bing') return;
     if (bingListLoaded || bingListLoading) return;
     void loadBingList();
   });
 
   async function loadBingList() {
+    const loadId = ++bingListLoadId;
     bingListLoading = true;
     bingListError = '';
     try {
       const result = await onLoadBingList();
+      if (loadId !== bingListLoadId) return;
       if (!result.ok) {
         bingImages = [];
         bingListError = result.error;
@@ -108,20 +115,26 @@
         return;
       }
       bingImages = result.images;
+      bingListError = '';
       bingListLoaded = true;
     } catch {
+      if (loadId !== bingListLoadId) return;
       bingImages = [];
       bingListError = 'Failed to fetch Bing wallpaper list.';
       bingListLoaded = true;
     } finally {
-      bingListLoading = false;
+      if (loadId === bingListLoadId) {
+        bingListLoading = false;
+      }
     }
   }
 
   function resetBingListCache() {
+    bingListLoadId += 1;
     bingImages = [];
     bingListError = '';
     bingListLoaded = false;
+    bingListLoading = false;
   }
 
   async function refreshBingToday() {
@@ -253,8 +266,9 @@
           source = deriveSource(settings.background);
           return;
         }
+        // Drop any in-flight/failed list fetch from before permission was granted.
+        // The effect reloads once settings.background.type is 'bing'.
         resetBingListCache();
-        void loadBingList();
       })();
     }
   }
@@ -568,7 +582,22 @@
           {#if bingListLoading && bingImages.length === 0}
             <p class="text-[var(--text-muted)]">{t('backgroundBingLoading')}</p>
           {:else if bingListError && bingImages.length === 0}
-            <p class="text-[var(--text-muted)]">{t('backgroundBingListFailed')}</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-[var(--text-muted)]">
+                {t('backgroundBingListFailed')}
+              </p>
+              <button
+                type="button"
+                class="rounded-md px-2 py-1 text-xs"
+                style:border="1px solid var(--dial-border)"
+                onclick={() => {
+                  resetBingListCache();
+                  void loadBingList();
+                }}
+              >
+                {t('backgroundBingRetry')}
+              </button>
+            </div>
           {:else if bingImages.length > 0}
             <div class="grid grid-cols-2 gap-2">
               {#each bingImages as item, index (item.url)}
