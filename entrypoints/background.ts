@@ -3,6 +3,7 @@ import {
   extractTitleFromHtml,
   titleFromHostname,
 } from '../lib/dials/pageTitle';
+import { hasFetchHostPermission } from '../lib/dials/hostPermission';
 import { isAllowedFaviconUrl } from '../lib/schemas/dial';
 
 const FETCH_TIMEOUT_MS = 8_000;
@@ -109,6 +110,15 @@ async function fetchPageTitle(url: string): Promise<FetchPageTitleResponse> {
     };
   }
 
+  if (!(await hasFetchHostPermission())) {
+    return {
+      ok: false,
+      error: 'Host permission not granted.',
+      title: fallback,
+      source: 'hostname',
+    };
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -155,10 +165,21 @@ async function fetchPageTitle(url: string): Promise<FetchPageTitleResponse> {
       faviconUrl,
     };
   } catch (err) {
+    // Missing host permission often surfaces as a generic TypeError/NetworkError.
+    if (!(await hasFetchHostPermission())) {
+      return {
+        ok: false,
+        error: 'Host permission not granted.',
+        title: fallback,
+        source: 'hostname',
+      };
+    }
     const message =
       err instanceof Error && err.name === 'AbortError'
         ? 'Request timed out.'
-        : 'Failed to fetch page.';
+        : err instanceof Error && err.message
+          ? `Failed to fetch page (${err.message}).`
+          : 'Failed to fetch page.';
     return { ok: false, error: message, title: fallback, source: 'hostname' };
   } finally {
     clearTimeout(timer);

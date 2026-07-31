@@ -5,6 +5,10 @@
     normalizeDialUrl,
     type Dial,
   } from '../lib/schemas/dial';
+  import {
+    hasFetchHostPermission,
+    requestFetchHostPermission,
+  } from '../lib/dials/hostPermission';
   import { titleFromHostname } from '../lib/dials/pageTitle';
   import { t } from '../lib/i18n';
 
@@ -94,7 +98,7 @@
     }
   }
 
-  async function fetchTitle(opts: { overwrite: boolean }) {
+  async function fetchTitle(opts: { overwrite: boolean; requestPermission: boolean }) {
     const normalized = normalizeDialUrl(url);
     if (!normalized || !isAllowedDialUrl(normalized)) {
       titleStatus = 'Enter an http(s) or about: URL first.';
@@ -102,6 +106,38 @@
     }
 
     if (!opts.overwrite && title.trim()) return;
+
+    // about: URLs cannot be fetched; use hostname/empty fallback only.
+    try {
+      const protocol = new URL(normalized).protocol;
+      if (protocol !== 'http:' && protocol !== 'https:') {
+        if (opts.overwrite || !title.trim()) {
+          const fallback = titleFromHostname(normalized);
+          if (fallback) title = fallback;
+        }
+        titleStatus = 'Only http(s) URLs support title fetch.';
+        return;
+      }
+    } catch {
+      titleStatus = 'Enter an http(s) or about: URL first.';
+      return;
+    }
+
+    // Blur cannot prompt; only Fetch title (user gesture) may request access.
+    let allowed = await hasFetchHostPermission();
+    if (!allowed && opts.requestPermission) {
+      allowed = await requestFetchHostPermission();
+    }
+    if (!allowed) {
+      if (opts.requestPermission) {
+        titleStatus = t('fetchTitlePermission');
+        if (opts.overwrite || !title.trim()) {
+          const fallback = titleFromHostname(normalized);
+          if (fallback) title = fallback;
+        }
+      }
+      return;
+    }
 
     const seq = ++fetchSeq;
     fetchingTitle = true;
@@ -127,6 +163,8 @@
 
     if (result.ok && result.source === 'html') {
       titleStatus = '';
+    } else if (result.error === 'Host permission not granted.') {
+      titleStatus = t('fetchTitlePermission');
     } else if (nextTitle) {
       titleStatus = result.error
         ? `${result.error} Using hostname.`
@@ -137,7 +175,7 @@
   }
 
   function onUrlBlur() {
-    void fetchTitle({ overwrite: false });
+    void fetchTitle({ overwrite: false, requestPermission: false });
   }
 
   function submit(event: Event) {
@@ -218,7 +256,7 @@
             style:border="1px solid var(--dial-border)"
             style:color="var(--accent)"
             disabled={fetchingTitle}
-            onclick={() => void fetchTitle({ overwrite: true })}
+            onclick={() => void fetchTitle({ overwrite: true, requestPermission: true })}
           >
             {fetchingTitle ? t('fetching') : t('fetchTitle')}
           </button>

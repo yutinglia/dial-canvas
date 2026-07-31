@@ -207,6 +207,9 @@
   "fetching": {
     "message": "Fetching…"
   },
+  "fetchTitlePermission": {
+    "message": "Permission needed to fetch page titles."
+  },
   "useGlobal": {
     "message": "Use global"
   },

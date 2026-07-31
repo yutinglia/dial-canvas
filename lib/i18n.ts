@@ -67,6 +67,7 @@ const FALLBACKS: Record<string, string> = {
   faviconUrl: 'Favicon URL (optional)',
   fetchTitle: 'Fetch title',
   fetching: 'Fetching…',
+  fetchTitlePermission: 'Permission needed to fetch page titles.',
   useGlobal: 'Use global',
   dataBackup: 'Backup',
   pages: 'Pages',
