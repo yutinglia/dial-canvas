@@ -186,7 +186,7 @@
       onOpenSettings={() => (settingsOpen = true)}
     />
 
-    <main class="h-full w-full pt-14">
+    <main class="h-full w-full">
       <DialCanvas
         dials={store.dials}
         settings={store.settings}
