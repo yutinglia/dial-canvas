@@ -33,6 +33,8 @@
   let showDate = $state(true);
   let units = $state<'metric' | 'imperial'>('metric');
   let location = $state<WeatherLocation | undefined>(undefined);
+  let fontSizeOverride = $state<number | null>(null);
+  let iconSizeOverride = $state<number | null>(null);
   let backgroundColorOverride = $state<string | null>(null);
   let backgroundOpacityOverride = $state<number | null>(null);
   let cityQuery = $state('');
@@ -41,6 +43,9 @@
   let geoBusy = $state(false);
   let error = $state('');
   let searchSeq = 0;
+
+  const DEFAULT_WIDGET_FONT_SIZE = 28;
+  const DEFAULT_WEATHER_ICON_SIZE = 28;
 
   const hasCustomBackground = $derived(
     backgroundColorOverride != null || backgroundOpacityOverride != null,
@@ -54,11 +59,18 @@
   const opacityPercent = $derived(
     Math.round(effectiveBackgroundOpacity * 100),
   );
+  const effectiveFontSize = $derived(
+    fontSizeOverride ?? DEFAULT_WIDGET_FONT_SIZE,
+  );
+  const effectiveIconSize = $derived(
+    iconSizeOverride ?? DEFAULT_WEATHER_ICON_SIZE,
+  );
 
   $effect(() => {
     if (!open || !widget) return;
     backgroundColorOverride = widget.backgroundColor ?? null;
     backgroundOpacityOverride = widget.backgroundOpacity ?? null;
+    fontSizeOverride = widget.fontSize ?? null;
     error = '';
     cityQuery = '';
     cityResults = [];
@@ -66,9 +78,11 @@
       format = widget.format;
       showSeconds = widget.showSeconds;
       showDate = widget.showDate;
+      iconSizeOverride = null;
     } else {
       units = widget.units;
       location = widget.location;
+      iconSizeOverride = widget.iconSize ?? null;
     }
   });
 
@@ -137,6 +151,8 @@
         showDate,
         ...background,
       };
+      if (fontSizeOverride != null) next.fontSize = fontSizeOverride;
+      else delete next.fontSize;
       if (!hasCustomBackground) {
         delete next.backgroundColor;
         delete next.backgroundOpacity;
@@ -152,6 +168,10 @@
     };
     if (location) next.location = location;
     else delete next.location;
+    if (fontSizeOverride != null) next.fontSize = fontSizeOverride;
+    else delete next.fontSize;
+    if (iconSizeOverride != null) next.iconSize = iconSizeOverride;
+    else delete next.iconSize;
     if (!hasCustomBackground) {
       delete next.backgroundColor;
       delete next.backgroundOpacity;
@@ -293,6 +313,82 @@
                 {/each}
               </ul>
             {/if}
+          </div>
+        {/if}
+
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between gap-2">
+            <label class="text-sm text-[var(--text-muted)]">
+              {t('fontSize')}
+              <span class="ml-1 text-[var(--text-muted)]">
+                {effectiveFontSize}px{fontSizeOverride == null
+                  ? ` (${t('useDefault').toLowerCase()})`
+                  : ''}
+              </span>
+            </label>
+            {#if fontSizeOverride != null}
+              <button
+                type="button"
+                class="rounded px-2 py-0.5 text-xs"
+                style:background="var(--toolbar-bg)"
+                style:border="1px solid var(--dial-border)"
+                style:color="var(--text-muted)"
+                onclick={() => (fontSizeOverride = null)}
+              >
+                {t('useDefault')}
+              </button>
+            {/if}
+          </div>
+          <input
+            type="range"
+            min="12"
+            max="64"
+            step="1"
+            value={effectiveFontSize}
+            oninput={(e) => {
+              fontSizeOverride = Number(
+                (e.currentTarget as HTMLInputElement).value,
+              );
+            }}
+          />
+        </div>
+
+        {#if widget.type === 'weather'}
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between gap-2">
+              <label class="text-sm text-[var(--text-muted)]">
+                {t('iconSize')}
+                <span class="ml-1 text-[var(--text-muted)]">
+                  {effectiveIconSize}px{iconSizeOverride == null
+                    ? ` (${t('useDefault').toLowerCase()})`
+                    : ''}
+                </span>
+              </label>
+              {#if iconSizeOverride != null}
+                <button
+                  type="button"
+                  class="rounded px-2 py-0.5 text-xs"
+                  style:background="var(--toolbar-bg)"
+                  style:border="1px solid var(--dial-border)"
+                  style:color="var(--text-muted)"
+                  onclick={() => (iconSizeOverride = null)}
+                >
+                  {t('useDefault')}
+                </button>
+              {/if}
+            </div>
+            <input
+              type="range"
+              min="16"
+              max="96"
+              step="1"
+              value={effectiveIconSize}
+              oninput={(e) => {
+                iconSizeOverride = Number(
+                  (e.currentTarget as HTMLInputElement).value,
+                );
+              }}
+            />
           </div>
         {/if}
 

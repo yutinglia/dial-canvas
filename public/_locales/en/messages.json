@@ -362,6 +362,9 @@
   "useDefaultBackground": {
     "message": "Use default"
   },
+  "useDefault": {
+    "message": "Use default"
+  },
   "close": {
     "message": "Close"
   },

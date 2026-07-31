@@ -20,6 +20,8 @@
   let error = $state('');
   let fetchSeq = 0;
 
+  const DEFAULT_ICON_SIZE = 28;
+
   const iconGlyph: Record<CurrentWeather['condition']['icon'], string> = {
     clear: '☀',
     partly: '⛅',
@@ -61,6 +63,13 @@
     void widget.location?.name;
     void loadWeather();
   });
+
+  const iconSize = $derived(widget.iconSize ?? DEFAULT_ICON_SIZE);
+  const tempFontSize = $derived(
+    widget.fontSize !== undefined
+      ? `${widget.fontSize}px`
+      : 'clamp(1.35rem, 24%, 2.5rem)',
+  );
 </script>
 
 <div
@@ -87,12 +96,16 @@
   {:else if error && !weather}
     <p class="text-sm text-[var(--danger)]">{t('weatherFailed')}</p>
   {:else if weather}
-    <div class="text-2xl leading-none" aria-hidden="true">
+    <div
+      class="leading-none"
+      style:font-size="{iconSize}px"
+      aria-hidden="true"
+    >
       {iconGlyph[weather.condition.icon]}
     </div>
     <div
       class="font-semibold tracking-tight text-[var(--dial-title)] tabular-nums"
-      style:font-size="clamp(1.35rem, 24%, 2.5rem)"
+      style:font-size={tempFontSize}
     >
       {formatTemperature(weather.temperature, weather.units)}
     </div>

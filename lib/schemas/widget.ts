@@ -17,6 +17,7 @@ const WidgetRectSchema = z.object({
   height: z.number().finite().min(64),
   backgroundColor: backgroundColorString.optional(),
   backgroundOpacity: z.number().finite().min(0).max(1).optional(),
+  fontSize: z.number().int().min(12).max(64).optional(),
 });
 
 export const WeatherLocationSchema = z.object({
@@ -36,6 +37,7 @@ export const WeatherWidgetSchema = WidgetRectSchema.extend({
   type: z.literal('weather'),
   units: z.enum(['metric', 'imperial']).default('metric'),
   location: WeatherLocationSchema.optional(),
+  iconSize: z.number().int().min(16).max(96).optional(),
 });
 
 export const WidgetSchema = z.discriminatedUnion('type', [

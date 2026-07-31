@@ -38,6 +38,16 @@
     }),
   );
   const dateText = $derived(formatClockDate(now));
+  const timeFontSize = $derived(
+    widget.fontSize !== undefined
+      ? `${widget.fontSize}px`
+      : 'clamp(1.25rem, 22%, 2.75rem)',
+  );
+  const dateFontSize = $derived(
+    widget.fontSize !== undefined
+      ? `${Math.max(11, Math.round(widget.fontSize * 0.42))}px`
+      : undefined,
+  );
 </script>
 
 <div
@@ -45,11 +55,17 @@
 >
   <div
     class="font-semibold tracking-tight text-[var(--dial-title)] tabular-nums"
-    style:font-size="clamp(1.25rem, 22%, 2.75rem)"
+    style:font-size={timeFontSize}
   >
     {timeText}
   </div>
   {#if widget.showDate}
-    <div class="text-sm text-[var(--text-muted)]">{dateText}</div>
+    <div
+      class="text-[var(--text-muted)]"
+      class:text-sm={dateFontSize === undefined}
+      style:font-size={dateFontSize}
+    >
+      {dateText}
+    </div>
   {/if}
 </div>

@@ -117,6 +117,7 @@ const FALLBACKS: Record<string, string> = {
   dialBackgroundColor: 'Cell background',
   dialBackgroundOpacity: 'Cell transparency',
   useDefaultBackground: 'Use default',
+  useDefault: 'Use default',
   close: 'Close',
   cancel: 'Cancel',
   save: 'Save',

@@ -69,4 +69,53 @@ describe('WidgetSchema', () => {
     expect(parsed.backgroundColor).toBe('#14161c');
     expect(parsed.backgroundOpacity).toBe(0.5);
   });
+
+  it('accepts optional fontSize and weather iconSize', () => {
+    expect(
+      WidgetSchema.parse({
+        ...baseRect,
+        type: 'clock',
+        fontSize: 32,
+      }).fontSize,
+    ).toBe(32);
+    expect(
+      WidgetSchema.parse({
+        ...baseRect,
+        type: 'weather',
+        fontSize: 28,
+        iconSize: 48,
+      }),
+    ).toMatchObject({ fontSize: 28, iconSize: 48 });
+  });
+
+  it('rejects out-of-range fontSize and iconSize', () => {
+    expect(
+      WidgetSchema.safeParse({
+        ...baseRect,
+        type: 'clock',
+        fontSize: 8,
+      }).success,
+    ).toBe(false);
+    expect(
+      WidgetSchema.safeParse({
+        ...baseRect,
+        type: 'clock',
+        fontSize: 80,
+      }).success,
+    ).toBe(false);
+    expect(
+      WidgetSchema.safeParse({
+        ...baseRect,
+        type: 'weather',
+        iconSize: 8,
+      }).success,
+    ).toBe(false);
+    expect(
+      WidgetSchema.safeParse({
+        ...baseRect,
+        type: 'weather',
+        iconSize: 128,
+      }).success,
+    ).toBe(false);
+  });
 });
