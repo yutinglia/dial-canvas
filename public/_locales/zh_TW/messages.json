@@ -381,13 +381,31 @@
     "message": "搜尋撥號"
   },
   "optionsIntro": {
-    "message": "版面、撥號、備份（匯入／匯出）、桌布與頁面都在新分頁中編輯。請使用常駐的「編輯」按鈕，再開啟「設定」。"
+    "message": "版面、撥號、備份（匯入／匯出）、桌布與頁面都在新分頁中編輯。將游標移到或聚焦右上角即可開啟「設定」；使用「編輯」來排列撥號與小工具。"
   },
   "optionsStepOpenTab": {
     "message": "開啟新分頁"
   },
+  "optionsStepHoverChrome": {
+    "message": "將游標移到或聚焦右上角"
+  },
   "optionsStepClickEditBefore": {
     "message": "點選"
+  },
+  "settingsSectionGeneral": {
+    "message": "一般"
+  },
+  "settingsSectionLayout": {
+    "message": "版面"
+  },
+  "settingsSectionCanvas": {
+    "message": "畫布"
+  },
+  "settingsSectionBackground": {
+    "message": "背景"
+  },
+  "settingsSectionData": {
+    "message": "資料"
   },
   "optionsStepUseSettingsBefore": {
     "message": "使用"

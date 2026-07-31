@@ -381,13 +381,31 @@
     "message": "Search dials"
   },
   "optionsIntro": {
-    "message": "Layout, dials, backup (import/export), wallpaper, and pages are edited on the new tab page. Use the always-visible Edit control, then Settings."
+    "message": "Layout, dials, backup (import/export), wallpaper, and pages are edited on the new tab page. Hover or focus the top-right corner to open Settings. Use Edit to arrange dials and widgets."
   },
   "optionsStepOpenTab": {
     "message": "Open a new tab"
   },
+  "optionsStepHoverChrome": {
+    "message": "Hover or focus the top-right corner"
+  },
   "optionsStepClickEditBefore": {
     "message": "Click"
+  },
+  "settingsSectionGeneral": {
+    "message": "General"
+  },
+  "settingsSectionLayout": {
+    "message": "Layout"
+  },
+  "settingsSectionCanvas": {
+    "message": "Canvas"
+  },
+  "settingsSectionBackground": {
+    "message": "Background"
+  },
+  "settingsSectionData": {
+    "message": "Data"
   },
   "optionsStepUseSettingsBefore": {
     "message": "Use"
@@ -504,7 +522,7 @@
     "message": "Grid size"
   },
   "snapEnabled": {
-    "message": "Snap to grid (adsorption)"
+    "message": "Snap to grid"
   },
   "iconSize": {
     "message": "Icon size"

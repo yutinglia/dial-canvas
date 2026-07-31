@@ -30,10 +30,7 @@
     </p>
     <ol class="list-decimal space-y-2 pl-5 text-sm text-[var(--text-muted)]">
       <li>{t('optionsStepOpenTab')}</li>
-      <li>
-        {t('optionsStepClickEditBefore')}
-        <strong class="text-[var(--dial-title)]">{t('edit')}</strong>
-      </li>
+      <li>{t('optionsStepHoverChrome')}</li>
       <li>
         {t('optionsStepUseSettingsBefore')}
         <strong class="text-[var(--dial-title)]">{t('settings')}</strong>
