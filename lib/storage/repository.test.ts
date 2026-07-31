@@ -153,13 +153,15 @@ describe('getStore migrate write-back', () => {
     const loaded = await getStore();
     expect(loaded.repaired).toBe(true);
     expect(loaded.droppedDialCount).toBe(2);
+    expect(loaded.droppedWidgetCount).toBe(0);
     expect(getActiveDials(loaded.store)).toEqual([validDial]);
+    expect(loaded.store.pages[0]?.widgets).toEqual([]);
 
     const stored = await browser.storage.local.get(STORAGE_KEYS.store);
     expect(stored[STORAGE_KEYS.store]).toEqual(loaded.store);
   });
 
-  it('migrates v1 payloads and write-backs v2', async () => {
+  it('migrates v1 payloads and write-backs v3', async () => {
     await browser.storage.local.set({
       [STORAGE_KEYS.store]: {
         version: 1,
@@ -170,11 +172,12 @@ describe('getStore migrate write-back', () => {
 
     const loaded = await getStore();
     expect(loaded.repaired).toBe(true);
-    expect(loaded.store.version).toBe(2);
+    expect(loaded.store.version).toBe(3);
     expect(getActiveDials(loaded.store)).toEqual([validDial]);
+    expect(loaded.store.pages[0]?.widgets).toEqual([]);
 
     const stored = await browser.storage.local.get(STORAGE_KEYS.store);
-    expect((stored[STORAGE_KEYS.store] as Store).version).toBe(2);
+    expect((stored[STORAGE_KEYS.store] as Store).version).toBe(3);
   });
 
   it('seeds and persists when storage is empty', async () => {

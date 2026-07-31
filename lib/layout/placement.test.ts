@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   clampRect,
+  defaultClockWidgetSize,
   defaultDialSize,
+  defaultWeatherWidgetSize,
   findFirstFreeSlot,
   resolveDrop,
 } from './placement';
@@ -122,6 +124,13 @@ describe('defaultDialSize', () => {
   it('floors width and height at 64px for small grids', () => {
     expect(defaultDialSize(8)).toEqual({ width: 64, height: 64 });
     expect(defaultDialSize(10)).toEqual({ width: 70, height: 64 });
+  });
+});
+
+describe('default widget sizes', () => {
+  it('uses 10×6 for clock and 10×7 for weather', () => {
+    expect(defaultClockWidgetSize(16)).toEqual({ width: 160, height: 96 });
+    expect(defaultWeatherWidgetSize(16)).toEqual({ width: 160, height: 112 });
   });
 });
 

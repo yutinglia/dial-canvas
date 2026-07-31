@@ -50,6 +50,28 @@ export function defaultDialSize(gridSize: number): {
   };
 }
 
+/** Default clock widget size in grid cells (10×6). */
+export function defaultClockWidgetSize(gridSize: number): {
+  width: number;
+  height: number;
+} {
+  return {
+    width: Math.max(64, gridSize * 10),
+    height: Math.max(64, gridSize * 6),
+  };
+}
+
+/** Default weather widget size in grid cells (10×7). */
+export function defaultWeatherWidgetSize(gridSize: number): {
+  width: number;
+  height: number;
+} {
+  return {
+    width: Math.max(64, gridSize * 10),
+    height: Math.max(64, gridSize * 7),
+  };
+}
+
 /** Scan snapped slots from top-left for the first free placement. */
 export function findFirstFreeSlot(
   others: Rect[],

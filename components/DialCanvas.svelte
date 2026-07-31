@@ -1,7 +1,9 @@
 <script lang="ts">
   import DialCell from './DialCell.svelte';
+  import WidgetCell from './WidgetCell.svelte';
   import GridOverlay from './GridOverlay.svelte';
   import type { Dial } from '../lib/schemas/dial';
+  import type { Widget } from '../lib/schemas/widget';
   import type { Settings } from '../lib/schemas/settings';
   import {
     clampRect,
@@ -22,28 +24,40 @@
     | 'se'
     | 'sw';
 
+  type CanvasKind = 'dial' | 'widget';
+
   interface Props {
     dials: Dial[];
+    widgets?: Widget[];
     settings: Settings;
     editMode: boolean;
     searchQuery?: string;
     onDialsChange: (dials: Dial[], opts?: { immediate?: boolean }) => void;
+    onWidgetsChange?: (widgets: Widget[], opts?: { immediate?: boolean }) => void;
     onEditDial: (dial: Dial) => void;
+    onEditWidget?: (widget: Widget) => void;
     onCanvasSizeChange?: (size: Size) => void;
     onContextMenu: (dial: Dial, event: MouseEvent) => void;
+    onWidgetContextMenu?: (widget: Widget, event: MouseEvent) => void;
     onAddDial?: () => void;
+    onAddWidget?: () => void;
   }
 
   let {
     dials,
+    widgets = [],
     settings,
     editMode,
     searchQuery = '',
     onDialsChange,
+    onWidgetsChange,
     onEditDial,
+    onEditWidget,
     onCanvasSizeChange,
     onContextMenu,
+    onWidgetContextMenu,
     onAddDial,
+    onAddWidget,
   }: Props = $props();
 
   let canvasEl: HTMLDivElement | undefined = $state();
@@ -55,6 +69,7 @@
     | {
         kind: 'move';
         id: string;
+        itemKind: CanvasKind;
         startX: number;
         startY: number;
         origin: Rect;
@@ -64,6 +79,7 @@
     | {
         kind: 'resize';
         id: string;
+        itemKind: CanvasKind;
         handle: ResizeHandle;
         startX: number;
         startY: number;
@@ -77,6 +93,7 @@
 
   const query = $derived(searchQuery.trim().toLowerCase());
   const hasQuery = $derived(query.length > 0);
+  const isEmpty = $derived(dials.length === 0 && widgets.length === 0);
 
   function matchesQuery(dial: Dial): boolean {
     if (!hasQuery) return true;
@@ -97,7 +114,6 @@
   }
 
   $effect(() => {
-    // Re-measure when min canvas settings change.
     void settings.canvasMinWidth;
     void settings.canvasMinHeight;
     measureCanvas();
@@ -106,17 +122,17 @@
     return () => observer.disconnect();
   });
 
-  function dialRect(dial: Dial): Rect {
+  function itemRect(item: { x: number; y: number; width: number; height: number }): Rect {
     return {
-      x: dial.x,
-      y: dial.y,
-      width: dial.width,
-      height: dial.height,
+      x: item.x,
+      y: item.y,
+      width: item.width,
+      height: item.height,
     };
   }
 
-  function displayRect(dial: Dial): Rect {
-    return previewById[dial.id] ?? dialRect(dial);
+  function displayRect(item: { id: string; x: number; y: number; width: number; height: number }): Rect {
+    return previewById[item.id] ?? itemRect(item);
   }
 
   function liveCandidate(raw: Rect): Rect {
@@ -167,22 +183,23 @@
     attachWindowListeners();
   }
 
-  function onMoveStart(dial: Dial, event: PointerEvent) {
+  function onDialMoveStart(dial: Dial, event: PointerEvent) {
     if (!editMode) return;
     event.preventDefault();
     selectedId = dial.id;
     beginInteraction({
       kind: 'move',
       id: dial.id,
+      itemKind: 'dial',
       startX: event.clientX,
       startY: event.clientY,
-      origin: dialRect(dial),
+      origin: itemRect(dial),
       pointerId: event.pointerId,
       moved: false,
     });
   }
 
-  function onResizeStart(
+  function onDialResizeStart(
     dial: Dial,
     handle: ResizeHandle,
     event: PointerEvent,
@@ -193,13 +210,58 @@
     beginInteraction({
       kind: 'resize',
       id: dial.id,
+      itemKind: 'dial',
       handle,
       startX: event.clientX,
       startY: event.clientY,
-      origin: dialRect(dial),
+      origin: itemRect(dial),
       pointerId: event.pointerId,
       moved: false,
     });
+  }
+
+  function onWidgetMoveStart(widget: Widget, event: PointerEvent) {
+    if (!editMode) return;
+    event.preventDefault();
+    selectedId = widget.id;
+    beginInteraction({
+      kind: 'move',
+      id: widget.id,
+      itemKind: 'widget',
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: itemRect(widget),
+      pointerId: event.pointerId,
+      moved: false,
+    });
+  }
+
+  function onWidgetResizeStart(
+    widget: Widget,
+    handle: ResizeHandle,
+    event: PointerEvent,
+  ) {
+    if (!editMode) return;
+    event.preventDefault();
+    selectedId = widget.id;
+    beginInteraction({
+      kind: 'resize',
+      id: widget.id,
+      itemKind: 'widget',
+      handle,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: itemRect(widget),
+      pointerId: event.pointerId,
+      moved: false,
+    });
+  }
+
+  function allOtherRects(excludeId: string): Rect[] {
+    return [
+      ...dials.filter((d) => d.id !== excludeId).map(itemRect),
+      ...widgets.filter((w) => w.id !== excludeId).map(itemRect),
+    ];
   }
 
   function onPointerMove(event: PointerEvent) {
@@ -225,10 +287,17 @@
     const candidate = liveCandidate(proposed);
     previewById = { ...previewById, [active.id]: candidate };
 
-    onDialsChange(
-      dials.map((d) => (d.id === active.id ? { ...d, ...candidate } : d)),
-      { immediate: false },
-    );
+    if (active.itemKind === 'dial') {
+      onDialsChange(
+        dials.map((d) => (d.id === active.id ? { ...d, ...candidate } : d)),
+        { immediate: false },
+      );
+    } else {
+      onWidgetsChange?.(
+        widgets.map((w) => (w.id === active.id ? { ...w, ...candidate } : w)),
+        { immediate: false },
+      );
+    }
   }
 
   function onPointerUp(event: PointerEvent) {
@@ -236,7 +305,7 @@
     if (!active || event.pointerId !== active.pointerId) return;
 
     const proposed = previewById[active.id] ?? active.origin;
-    const others = dials.filter((d) => d.id !== active.id).map(dialRect);
+    const others = allOtherRects(active.id);
 
     const committed = resolveDrop(
       proposed,
@@ -250,16 +319,22 @@
       canvasSize,
     );
 
-    const nextDials = dials.map((d) =>
-      d.id === active.id ? { ...d, ...committed } : d,
-    );
-
     const { [active.id]: _, ...rest } = previewById;
     previewById = rest;
     interaction = null;
     detachWindowListeners();
 
-    onDialsChange(nextDials, { immediate: true });
+    if (active.itemKind === 'dial') {
+      onDialsChange(
+        dials.map((d) => (d.id === active.id ? { ...d, ...committed } : d)),
+        { immediate: true },
+      );
+    } else {
+      onWidgetsChange?.(
+        widgets.map((w) => (w.id === active.id ? { ...w, ...committed } : w)),
+        { immediate: true },
+      );
+    }
   }
 
   $effect(() => {
@@ -280,22 +355,38 @@
     visible={editMode && settings.snapEnabled}
   />
 
-  {#if dials.length === 0}
+  {#if isEmpty}
     <div
       class="pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 px-6 text-center"
     >
       <p class="text-base text-[var(--dial-title)]">{t('emptyCanvas')}</p>
       <p class="text-sm text-[var(--text-muted)]">{t('emptyCanvasHint')}</p>
-      {#if editMode && onAddDial}
-        <button
-          type="button"
-          class="pointer-events-auto mt-2 rounded-md px-3 py-1.5 text-sm"
-          style:background="var(--accent)"
-          style:color="#0f1216"
-          onclick={onAddDial}
-        >
-          + {t('addDial')}
-        </button>
+      {#if editMode}
+        <div class="pointer-events-auto mt-2 flex flex-wrap items-center justify-center gap-2">
+          {#if onAddDial}
+            <button
+              type="button"
+              class="rounded-md px-3 py-1.5 text-sm"
+              style:background="var(--accent)"
+              style:color="#0f1216"
+              onclick={onAddDial}
+            >
+              + {t('addDial')}
+            </button>
+          {/if}
+          {#if onAddWidget}
+            <button
+              type="button"
+              class="rounded-md px-3 py-1.5 text-sm"
+              style:background="var(--toolbar-bg)"
+              style:border="1px solid var(--dial-border)"
+              style:color="var(--dial-title)"
+              onclick={onAddWidget}
+            >
+              + {t('addWidget')}
+            </button>
+          {/if}
+        </div>
       {/if}
     </div>
   {:else if hasQuery && !dials.some(matchesQuery)}
@@ -318,9 +409,25 @@
       iconSize={dial.iconSize ?? settings.iconSize}
       fontSize={dial.fontSize ?? settings.fontSize}
       onEdit={onEditDial}
-      {onMoveStart}
-      {onResizeStart}
+      onMoveStart={onDialMoveStart}
+      onResizeStart={onDialResizeStart}
       {onContextMenu}
+    />
+  {/each}
+
+  {#each widgets as widget (widget.id)}
+    {@const rect = displayRect(widget)}
+    <WidgetCell
+      widget={{ ...widget, ...rect }}
+      {editMode}
+      selected={selectedId === widget.id}
+      preview={Boolean(previewById[widget.id])}
+      dragging={interaction?.kind === 'move' && interaction.id === widget.id}
+      dimmed={hasQuery}
+      onEdit={(w) => onEditWidget?.(w)}
+      onMoveStart={onWidgetMoveStart}
+      onResizeStart={onWidgetResizeStart}
+      onContextMenu={(w, e) => onWidgetContextMenu?.(w, e)}
     />
   {/each}
 </div>

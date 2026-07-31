@@ -5,10 +5,19 @@
   import DialEditorModal from '../../components/DialEditorModal.svelte';
   import SettingsPanel from '../../components/SettingsPanel.svelte';
   import DialContextMenu from '../../components/DialContextMenu.svelte';
+  import WidgetContextMenu from '../../components/WidgetContextMenu.svelte';
+  import WidgetPickerModal from '../../components/WidgetPickerModal.svelte';
+  import WidgetEditorModal from '../../components/WidgetEditorModal.svelte';
   import DialSearchOverlay from '../../components/DialSearchOverlay.svelte';
   import PageTabs from '../../components/PageTabs.svelte';
   import { createId } from '../../lib/id';
-  import { findFirstFreeSlot, type Size } from '../../lib/layout';
+  import {
+    defaultClockWidgetSize,
+    defaultWeatherWidgetSize,
+    findFirstFreeSlot,
+    type Rect,
+    type Size,
+  } from '../../lib/layout';
   import {
     isAllowedDialUrl,
     normalizeDialUrl,
@@ -16,12 +25,15 @@
     type Dial,
   } from '../../lib/schemas/dial';
   import type { Background, Settings } from '../../lib/schemas/settings';
+  import type { Widget, WidgetType } from '../../lib/schemas/widget';
   import {
     createEmptyStore,
     createPage,
     getActiveDials,
     getActivePage,
+    getActiveWidgets,
     withActiveDials,
+    withActiveWidgets,
     type Store,
   } from '../../lib/schemas/store';
   import {
@@ -56,6 +68,9 @@
   let settingsOpen = $state(false);
   let editorOpen = $state(false);
   let editingDial = $state<Dial | null>(null);
+  let widgetPickerOpen = $state(false);
+  let widgetEditorOpen = $state(false);
+  let editingWidget = $state<Widget | null>(null);
   let canvasSize = $state<Size>({ width: 1200, height: 800 });
   let toastMessage = $state('');
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -67,9 +82,52 @@
     x: number;
     y: number;
   } | null>(null);
+  let widgetContextMenu = $state<{
+    widget: Widget;
+    x: number;
+    y: number;
+  } | null>(null);
   let bingFetchInFlight = false;
 
   const activeDials = $derived(store ? getActiveDials(store) : []);
+  const activeWidgets = $derived(store ? getActiveWidgets(store) : []);
+
+  function occupiedRects(
+    dials: Dial[] = activeDials,
+    widgets: Widget[] = activeWidgets,
+  ): Rect[] {
+    return [
+      ...dials.map((d) => ({
+        x: d.x,
+        y: d.y,
+        width: d.width,
+        height: d.height,
+      })),
+      ...widgets.map((w) => ({
+        x: w.x,
+        y: w.y,
+        width: w.width,
+        height: w.height,
+      })),
+    ];
+  }
+
+  function notifyDroppedItems(dials: number, widgets: number) {
+    if (dials > 0) {
+      showToast(
+        dials === 1
+          ? t('dialRemovedOne')
+          : t('dialRemovedMany', String(dials)),
+      );
+    }
+    if (widgets > 0) {
+      showToast(
+        widgets === 1
+          ? t('widgetRemovedOne')
+          : t('widgetRemovedMany', String(widgets)),
+      );
+    }
+  }
 
   const saver = createDebouncedSaver(200, {
     onError: (error) => {
@@ -240,13 +298,7 @@
       }
       const loaded = await getStore();
       await applyRemoteStore(loaded.store);
-      if (loaded.droppedDialCount > 0) {
-        showToast(
-          loaded.droppedDialCount === 1
-            ? t('dialRemovedOne')
-            : t('dialRemovedMany', String(loaded.droppedDialCount)),
-        );
-      }
+      notifyDroppedItems(loaded.droppedDialCount, loaded.droppedWidgetCount);
     } catch {
       showToast(t('syncFailed'));
     }
@@ -278,13 +330,7 @@
         if (loaded.store.settings.background.type === 'bing') {
           void ensureBingWallpaper(false);
         }
-        if (loaded.droppedDialCount > 0) {
-          showToast(
-            loaded.droppedDialCount === 1
-              ? t('dialRemovedOne')
-              : t('dialRemovedMany', String(loaded.droppedDialCount)),
-          );
-        }
+        notifyDroppedItems(loaded.droppedDialCount, loaded.droppedWidgetCount);
       } catch {
         showToast(t('loadFailed'));
       }
@@ -294,6 +340,10 @@
       if (event.key === 'Escape') {
         if (contextMenu) {
           contextMenu = null;
+          return;
+        }
+        if (widgetContextMenu) {
+          widgetContextMenu = null;
           return;
         }
         if (searchOpen) {
@@ -306,6 +356,15 @@
           editingDial = null;
           return;
         }
+        if (widgetPickerOpen) {
+          widgetPickerOpen = false;
+          return;
+        }
+        if (widgetEditorOpen) {
+          widgetEditorOpen = false;
+          editingWidget = null;
+          return;
+        }
         if (settingsOpen) {
           closeSettings();
           return;
@@ -316,6 +375,8 @@
         (event.ctrlKey || event.metaKey) &&
         event.key.toLowerCase() === 'f' &&
         !editorOpen &&
+        !widgetEditorOpen &&
+        !widgetPickerOpen &&
         !settingsOpen
       ) {
         event.preventDefault();
@@ -400,6 +461,11 @@
   function onDialsChange(dials: Dial[], opts?: { immediate?: boolean }) {
     if (!store) return;
     void persist(withActiveDials(store, dials), opts?.immediate ?? true);
+  }
+
+  function onWidgetsChange(widgets: Widget[], opts?: { immediate?: boolean }) {
+    if (!store) return;
+    void persist(withActiveWidgets(store, widgets), opts?.immediate ?? true);
   }
 
   function onSettingsChange(
@@ -565,6 +631,117 @@
     editingDial = null;
   }
 
+  function openAddWidget() {
+    widgetPickerOpen = true;
+  }
+
+  function closeWidgetPicker() {
+    widgetPickerOpen = false;
+  }
+
+  function openEditWidget(widget: Widget) {
+    editingWidget = widget;
+    widgetEditorOpen = true;
+  }
+
+  function closeWidgetEditor() {
+    widgetEditorOpen = false;
+    editingWidget = null;
+  }
+
+  async function addWidgetOfType(type: WidgetType) {
+    if (!store) return;
+    widgetPickerOpen = false;
+    const dials = getActiveDials(store);
+    const widgets = getActiveWidgets(store);
+    const size =
+      type === 'clock'
+        ? defaultClockWidgetSize(store.settings.gridSize)
+        : defaultWeatherWidgetSize(store.settings.gridSize);
+    const slot = findFirstFreeSlot(
+      occupiedRects(dials, widgets),
+      store.settings.gridSize,
+      canvasSize,
+      size,
+    );
+
+    const base = {
+      id: createId(),
+      ...slot,
+    };
+
+    const widget: Widget =
+      type === 'clock'
+        ? {
+            ...base,
+            type: 'clock',
+            format: '24h',
+            showSeconds: false,
+            showDate: true,
+          }
+        : {
+            ...base,
+            type: 'weather',
+            units: 'metric',
+          };
+
+    await persist(withActiveWidgets(store, [...widgets, widget]), true);
+    if (type === 'weather') {
+      openEditWidget(widget);
+    }
+  }
+
+  async function saveWidget(next: Widget) {
+    if (!store) return;
+    const widgets = getActiveWidgets(store).map((w) =>
+      w.id === next.id ? next : w,
+    );
+    await persist(withActiveWidgets(store, widgets), true);
+    closeWidgetEditor();
+  }
+
+  async function deleteWidgetFromEditor() {
+    if (!store || !editingWidget) return;
+    const widgets = getActiveWidgets(store).filter(
+      (w) => w.id !== editingWidget!.id,
+    );
+    await persist(withActiveWidgets(store, widgets), true);
+    closeWidgetEditor();
+  }
+
+  async function deleteWidgetById(widget: Widget) {
+    if (!store) return;
+    if (!confirm(t('confirmDeleteWidget'))) return;
+    const widgets = getActiveWidgets(store).filter((w) => w.id !== widget.id);
+    await persist(withActiveWidgets(store, widgets), true);
+  }
+
+  function onWidgetContextMenu(widget: Widget, event: MouseEvent) {
+    event.preventDefault();
+    contextMenu = null;
+    const pad = 8;
+    const menuW = 160;
+    const menuH = editMode ? 100 : 50;
+    const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
+    const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
+    widgetContextMenu = {
+      widget,
+      x: Math.max(pad, x),
+      y: Math.max(pad, y),
+    };
+  }
+
+  function onDialContextMenu(dial: Dial, event: MouseEvent) {
+    event.preventDefault();
+    widgetContextMenu = null;
+    const pad = 8;
+    const menuW = 160;
+    const menuH = editMode ? 160 : 80;
+    const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
+    const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
+    contextMenu = { dial, x: Math.max(pad, x), y: Math.max(pad, y) };
+  }
+
   async function saveDial(values: {
     title: string;
     url: string;
@@ -612,12 +789,7 @@
       await persist(withActiveDials(store, nextDials), true);
     } else {
       const slot = findFirstFreeSlot(
-        dials.map((d) => ({
-          x: d.x,
-          y: d.y,
-          width: d.width,
-          height: d.height,
-        })),
+        occupiedRects(dials, getActiveWidgets(store)),
         store.settings.gridSize,
         canvasSize,
       );
@@ -671,16 +843,6 @@
     } catch {
       showToast(t('copyFailed'));
     }
-  }
-
-  function onDialContextMenu(dial: Dial, event: MouseEvent) {
-    event.preventDefault();
-    const pad = 8;
-    const menuW = 160;
-    const menuH = editMode ? 160 : 80;
-    const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
-    const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
-    contextMenu = { dial, x: Math.max(pad, x), y: Math.max(pad, y) };
   }
 
   function selectPage(pageId: string) {
@@ -752,12 +914,24 @@
       // Force persist even if parse reports unrepaired (import always writes).
       await persist(migrated.store, true);
       showToast(
-        migrated.droppedDialCount > 0
-          ? `${t('importSuccess')} ${
-              migrated.droppedDialCount === 1
-                ? t('dialRemovedOne')
-                : t('dialRemovedMany', String(migrated.droppedDialCount))
-            }`
+        migrated.droppedDialCount > 0 || migrated.droppedWidgetCount > 0
+          ? `${t('importSuccess')} ${[
+              migrated.droppedDialCount > 0
+                ? migrated.droppedDialCount === 1
+                  ? t('dialRemovedOne')
+                  : t('dialRemovedMany', String(migrated.droppedDialCount))
+                : '',
+              migrated.droppedWidgetCount > 0
+                ? migrated.droppedWidgetCount === 1
+                  ? t('widgetRemovedOne')
+                  : t(
+                      'widgetRemovedMany',
+                      String(migrated.droppedWidgetCount),
+                    )
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}`
           : t('importSuccess'),
       );
       settingsOpen = false;
@@ -799,6 +973,13 @@
         existing,
         store.settings.gridSize,
         canvasSize,
+        40,
+        getActiveWidgets(store).map((w) => ({
+          x: w.x,
+          y: w.y,
+          width: w.width,
+          height: w.height,
+        })),
       );
       const added = nextDials.length - existing.length;
       await persist(withActiveDials(store, nextDials), true);
@@ -836,6 +1017,7 @@
       {showEditHint}
       onToggleEdit={toggleEdit}
       onAddDial={openAddDial}
+      onAddWidget={openAddWidget}
       onOpenSettings={() => (settingsOpen = true)}
       onOpenSearch={() => (searchOpen = true)}
     />
@@ -853,14 +1035,19 @@
     <main class="h-full w-full">
       <DialCanvas
         dials={activeDials}
+        widgets={activeWidgets}
         settings={store.settings}
         {editMode}
         searchQuery={searchOpen ? searchQuery : ''}
         {onDialsChange}
+        {onWidgetsChange}
         onEditDial={openEditDial}
+        onEditWidget={openEditWidget}
         onCanvasSizeChange={(size) => (canvasSize = size)}
         onContextMenu={onDialContextMenu}
+        onWidgetContextMenu={onWidgetContextMenu}
         onAddDial={openAddDial}
+        onAddWidget={openAddWidget}
       />
     </main>
 
@@ -882,6 +1069,20 @@
       onClose={closeEditor}
       onSave={saveDial}
       onDelete={editingDial ? deleteDialFromEditor : undefined}
+    />
+
+    <WidgetPickerModal
+      open={widgetPickerOpen}
+      onClose={closeWidgetPicker}
+      onPick={addWidgetOfType}
+    />
+
+    <WidgetEditorModal
+      open={widgetEditorOpen}
+      widget={editingWidget}
+      onClose={closeWidgetEditor}
+      onSave={saveWidget}
+      onDelete={editingWidget ? deleteWidgetFromEditor : undefined}
     />
 
     <SettingsPanel
@@ -910,6 +1111,16 @@
       onDelete={deleteDialById}
       onOpen={openDial}
       onCopyUrl={copyDialUrl}
+    />
+
+    <WidgetContextMenu
+      widget={widgetContextMenu?.widget ?? null}
+      x={widgetContextMenu?.x ?? 0}
+      y={widgetContextMenu?.y ?? 0}
+      {editMode}
+      onClose={() => (widgetContextMenu = null)}
+      onEdit={openEditWidget}
+      onDelete={deleteWidgetById}
     />
 
     {#if toastMessage}

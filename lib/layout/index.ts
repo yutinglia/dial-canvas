@@ -5,6 +5,8 @@ export {
   clampRect,
   resolveDrop,
   defaultDialSize,
+  defaultClockWidgetSize,
+  defaultWeatherWidgetSize,
   findFirstFreeSlot,
   type DropSettings,
 } from './placement';

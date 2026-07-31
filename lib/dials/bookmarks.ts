@@ -62,14 +62,18 @@ export function dialsFromBookmarks(
   gridSize: number,
   canvasSize: Size,
   limit = 40,
+  extraOccupied: Array<{ x: number; y: number; width: number; height: number }> = [],
 ): Dial[] {
   const dials = [...existing];
-  const occupied = dials.map((d) => ({
-    x: d.x,
-    y: d.y,
-    width: d.width,
-    height: d.height,
-  }));
+  const occupied = [
+    ...dials.map((d) => ({
+      x: d.x,
+      y: d.y,
+      width: d.width,
+      height: d.height,
+    })),
+    ...extraOccupied,
+  ];
   const size = defaultDialSize(gridSize);
   const slice = bookmarks.slice(0, limit);
 

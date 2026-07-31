@@ -7,14 +7,33 @@ import {
 import { SettingsSchema } from '../schemas/settings';
 
 /** Migrate a v1 `{ version: 1, dials, settings }` payload to v2 multi-page. */
-function migrateV1ToV2(raw: Record<string, unknown>): unknown {
+function migrateV1ToV2(raw: Record<string, unknown>): Record<string, unknown> {
   const dials = Array.isArray(raw.dials) ? raw.dials : [];
   const settingsResult = SettingsSchema.safeParse(raw.settings);
   return {
-    version: STORE_VERSION,
+    version: 2,
     pages: [{ id: 'page-home', name: 'Home', dials }],
     activePageId: 'page-home',
     settings: settingsResult.success ? settingsResult.data : raw.settings,
+  };
+}
+
+/** Migrate a v2 multi-page payload to v3 by adding empty widgets arrays. */
+function migrateV2ToV3(raw: Record<string, unknown>): Record<string, unknown> {
+  const pages = Array.isArray(raw.pages)
+    ? raw.pages.map((page) => {
+        if (!page || typeof page !== 'object') return page;
+        const record = page as Record<string, unknown>;
+        return {
+          ...record,
+          widgets: Array.isArray(record.widgets) ? record.widgets : [],
+        };
+      })
+    : raw.pages;
+  return {
+    ...raw,
+    version: STORE_VERSION,
+    pages,
   };
 }
 
@@ -33,8 +52,14 @@ export function migrateStoreWithMeta(raw: unknown): ParseStoreResult {
       return parseStoreWithMeta(raw);
     }
 
+    if (version === 2) {
+      const migrated = migrateV2ToV3(record);
+      const parsed = parseStoreWithMeta(migrated);
+      return { ...parsed, repaired: true };
+    }
+
     if (version === 1) {
-      const migrated = migrateV1ToV2(record);
+      const migrated = migrateV2ToV3(migrateV1ToV2(record));
       const parsed = parseStoreWithMeta(migrated);
       // Always treat version bumps as repaired so callers persist the new shape.
       return { ...parsed, repaired: true };

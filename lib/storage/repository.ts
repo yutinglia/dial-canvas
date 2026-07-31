@@ -12,6 +12,7 @@ import { createSeedDials } from '../dials/seed';
 export type LoadStoreResult = {
   store: Store;
   droppedDialCount: number;
+  droppedWidgetCount: number;
   repaired: boolean;
 };
 
@@ -35,7 +36,12 @@ export async function getStore(): Promise<LoadStoreResult> {
   if (raw === undefined) {
     const seeded = createEmptyStore(createSeedDials());
     await setStore(seeded);
-    return { store: seeded, droppedDialCount: 0, repaired: false };
+    return {
+      store: seeded,
+      droppedDialCount: 0,
+      droppedWidgetCount: 0,
+      repaired: false,
+    };
   }
 
   const migrated = migrateStoreWithMeta(raw);
@@ -45,6 +51,7 @@ export async function getStore(): Promise<LoadStoreResult> {
   return {
     store: migrated.store,
     droppedDialCount: migrated.droppedDialCount,
+    droppedWidgetCount: migrated.droppedWidgetCount,
     repaired: migrated.repaired,
   };
 }

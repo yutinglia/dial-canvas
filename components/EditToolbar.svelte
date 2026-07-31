@@ -6,6 +6,7 @@
     showEditHint?: boolean;
     onToggleEdit: () => void;
     onAddDial: () => void;
+    onAddWidget: () => void;
     onOpenSettings: () => void;
     onOpenSearch: () => void;
   }
@@ -15,6 +16,7 @@
     showEditHint = false,
     onToggleEdit,
     onAddDial,
+    onAddWidget,
     onOpenSettings,
     onOpenSearch,
   }: Props = $props();
@@ -60,6 +62,16 @@
         onclick={onAddDial}
       >
         + {t('addDial')}
+      </button>
+      <button
+        type="button"
+        class="shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors"
+        style:background="var(--toolbar-bg)"
+        style:border="1px solid var(--dial-border)"
+        style:color="var(--dial-title)"
+        onclick={onAddWidget}
+      >
+        + {t('addWidget')}
       </button>
     {/if}
     <button

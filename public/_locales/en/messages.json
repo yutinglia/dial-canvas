@@ -17,6 +17,9 @@
   "addDial": {
     "message": "Add dial"
   },
+  "addWidget": {
+    "message": "Add widget"
+  },
   "settings": {
     "message": "Settings"
   },
@@ -24,13 +27,13 @@
     "message": "Edit mode"
   },
   "editHint": {
-    "message": "Hover the top-right corner, or click Edit to arrange dials."
+    "message": "Hover the top-right corner, or click Edit to arrange dials and widgets."
   },
   "emptyCanvas": {
-    "message": "No dials on this page yet."
+    "message": "Nothing on this page yet."
   },
   "emptyCanvasHint": {
-    "message": "Click Edit, then Add dial to get started."
+    "message": "Click Edit, then Add dial or Add widget to get started."
   },
   "searchPlaceholder": {
     "message": "Search dials…"
@@ -51,13 +54,16 @@
     "message": "Delete page"
   },
   "confirmDeletePage": {
-    "message": "Delete this page and all of its dials?"
+    "message": "Delete this page and all of its dials and widgets?"
   },
   "confirmDeleteDial": {
     "message": "Delete this dial?"
   },
+  "confirmDeleteWidget": {
+    "message": "Delete this widget?"
+  },
   "confirmReset": {
-    "message": "Reset all dials and settings to defaults? This cannot be undone."
+    "message": "Reset all dials, widgets, and settings to defaults? This cannot be undone."
   },
   "exportJson": {
     "message": "Export JSON"
@@ -89,8 +95,98 @@
   "deleteDial": {
     "message": "Delete"
   },
+  "deleteWidget": {
+    "message": "Delete"
+  },
   "editDial": {
     "message": "Edit dial"
+  },
+  "editWidget": {
+    "message": "Edit widget"
+  },
+  "editClockWidget": {
+    "message": "Edit clock"
+  },
+  "editWeatherWidget": {
+    "message": "Edit weather"
+  },
+  "pickWidget": {
+    "message": "Choose a widget type to place on the canvas."
+  },
+  "widgetClock": {
+    "message": "Clock"
+  },
+  "widgetClockHint": {
+    "message": "Live digital clock with optional date."
+  },
+  "widgetWeather": {
+    "message": "Weather"
+  },
+  "widgetWeatherHint": {
+    "message": "Current conditions for a city or your location."
+  },
+  "clockFormat": {
+    "message": "Time format"
+  },
+  "clockFormat12": {
+    "message": "12-hour"
+  },
+  "clockFormat24": {
+    "message": "24-hour"
+  },
+  "clockShowSeconds": {
+    "message": "Show seconds"
+  },
+  "clockShowDate": {
+    "message": "Show date"
+  },
+  "weatherUnits": {
+    "message": "Units"
+  },
+  "weatherUnitsMetric": {
+    "message": "Celsius / km/h"
+  },
+  "weatherUnitsImperial": {
+    "message": "Fahrenheit / mph"
+  },
+  "weatherLocation": {
+    "message": "Location"
+  },
+  "weatherNoLocation": {
+    "message": "No location set yet."
+  },
+  "weatherCityPlaceholder": {
+    "message": "Search for a city…"
+  },
+  "weatherSearch": {
+    "message": "Search"
+  },
+  "weatherSearching": {
+    "message": "Searching…"
+  },
+  "weatherUseMyLocation": {
+    "message": "Use my location"
+  },
+  "weatherLocating": {
+    "message": "Locating…"
+  },
+  "weatherSetLocation": {
+    "message": "Set location"
+  },
+  "weatherLoading": {
+    "message": "Loading weather…"
+  },
+  "weatherFailed": {
+    "message": "Could not load weather."
+  },
+  "weatherSearchFailed": {
+    "message": "City search failed."
+  },
+  "weatherNoResults": {
+    "message": "No matching cities found."
+  },
+  "weatherGeoFailed": {
+    "message": "Could not get your location."
   },
   "dialCopied": {
     "message": "URL copied."
@@ -112,6 +208,17 @@
   },
   "dialRemovedMany": {
     "message": "$1 invalid dials were removed.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "widgetRemovedOne": {
+    "message": "1 invalid widget was removed."
+  },
+  "widgetRemovedMany": {
+    "message": "$1 invalid widgets were removed.",
     "placeholders": {
       "count": {
         "content": "$1"

@@ -5,6 +5,7 @@ import {
   STORE_VERSION,
   createEmptyStore,
   getActiveDials,
+  getActiveWidgets,
   parseStore,
   parseStoreWithMeta,
 } from './store';
@@ -20,9 +21,23 @@ const validDial = {
   height: 64,
 };
 
+const validClock = {
+  id: 'w1',
+  type: 'clock' as const,
+  format: '24h' as const,
+  showSeconds: false,
+  showDate: true,
+  x: 200,
+  y: 0,
+  width: 160,
+  height: 96,
+};
+
 const sampleStore = {
   version: STORE_VERSION,
-  pages: [{ id: 'page-home', name: 'Home', dials: [validDial] }],
+  pages: [
+    { id: 'page-home', name: 'Home', dials: [validDial], widgets: [validClock] },
+  ],
   activePageId: 'page-home',
   settings: DEFAULT_SETTINGS,
 };
@@ -243,6 +258,7 @@ describe('parseStore', () => {
             { id: 'bad' },
             { ...validDial, id: 'd2', url: 'nope' },
           ],
+          widgets: [],
         },
       ],
       activePageId: 'page-home',
@@ -251,6 +267,28 @@ describe('parseStore', () => {
     expect(getActiveDials(result)).toEqual([validDial]);
     expect(result.settings.gridSize).toBe(24);
     expect(result.settings.snapEnabled).toBe(false);
+  });
+
+  it('drops invalid widgets and keeps valid ones', () => {
+    const result = parseStoreWithMeta({
+      version: STORE_VERSION,
+      pages: [
+        {
+          id: 'page-home',
+          name: 'Home',
+          dials: [],
+          widgets: [
+            validClock,
+            { id: 'bad', type: 'clock' },
+            { ...validClock, id: 'w2', type: 'weather', location: { name: 'x' } },
+          ],
+        },
+      ],
+      activePageId: 'page-home',
+      settings: DEFAULT_SETTINGS,
+    });
+    expect(result.droppedWidgetCount).toBe(2);
+    expect(getActiveWidgets(result.store)).toEqual([validClock]);
   });
 
   it('drops dials with disallowed URL schemes during recovery', () => {
@@ -264,6 +302,7 @@ describe('parseStore', () => {
             validDial,
             { ...validDial, id: 'js', url: 'javascript:alert(1)' },
           ],
+          widgets: [],
         },
       ],
       activePageId: 'page-home',
@@ -275,7 +314,7 @@ describe('parseStore', () => {
   it('falls back to default settings when settings are invalid', () => {
     const result = parseStore({
       version: STORE_VERSION,
-      pages: [{ id: 'page-home', name: 'Home', dials: [] }],
+      pages: [{ id: 'page-home', name: 'Home', dials: [], widgets: [] }],
       activePageId: 'page-home',
       settings: { gridSize: 999 },
     });
@@ -285,7 +324,7 @@ describe('parseStore', () => {
   it('keeps other settings when only background is invalid', () => {
     const result = parseStoreWithMeta({
       version: STORE_VERSION,
-      pages: [{ id: 'page-home', name: 'Home', dials: [] }],
+      pages: [{ id: 'page-home', name: 'Home', dials: [], widgets: [] }],
       activePageId: 'page-home',
       settings: {
         gridSize: 24,
@@ -318,6 +357,7 @@ describe('parseStore', () => {
     });
     expect(result.repaired).toBe(true);
     expect(getActiveDials(result.store)).toEqual([validDial]);
+    expect(getActiveWidgets(result.store)).toEqual([]);
     expect(result.store.version).toBe(STORE_VERSION);
   });
 });
@@ -327,17 +367,31 @@ describe('migrateStore', () => {
     expect(migrateStore(sampleStore)).toEqual(sampleStore);
   });
 
-  it('migrates v1 dials to a Home page and marks repaired', () => {
+  it('migrates v1 dials to a Home page with widgets and marks repaired', () => {
     const result = migrateStoreWithMeta({
       version: 1,
       dials: [validDial],
       settings: DEFAULT_SETTINGS,
     });
     expect(result.repaired).toBe(true);
-    expect(result.store.version).toBe(2);
+    expect(result.store.version).toBe(3);
     expect(result.store.pages).toHaveLength(1);
     expect(result.store.pages[0]?.name).toBe('Home');
     expect(getActiveDials(result.store)).toEqual([validDial]);
+    expect(getActiveWidgets(result.store)).toEqual([]);
+  });
+
+  it('migrates v2 pages by adding empty widgets arrays', () => {
+    const result = migrateStoreWithMeta({
+      version: 2,
+      pages: [{ id: 'page-home', name: 'Home', dials: [validDial] }],
+      activePageId: 'page-home',
+      settings: DEFAULT_SETTINGS,
+    });
+    expect(result.repaired).toBe(true);
+    expect(result.store.version).toBe(3);
+    expect(getActiveDials(result.store)).toEqual([validDial]);
+    expect(getActiveWidgets(result.store)).toEqual([]);
   });
 
   it('still recovers unknown / missing version via parseStore', () => {
