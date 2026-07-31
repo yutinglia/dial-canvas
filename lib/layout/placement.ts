@@ -72,6 +72,61 @@ export function defaultWeatherWidgetSize(gridSize: number): {
   };
 }
 
+/** Default note widget size in grid cells (10×8). */
+export function defaultNoteWidgetSize(gridSize: number): {
+  width: number;
+  height: number;
+} {
+  return {
+    width: Math.max(64, gridSize * 10),
+    height: Math.max(64, gridSize * 8),
+  };
+}
+
+/** Default todo widget size in grid cells (10×10). */
+export function defaultTodoWidgetSize(gridSize: number): {
+  width: number;
+  height: number;
+} {
+  return {
+    width: Math.max(64, gridSize * 10),
+    height: Math.max(64, gridSize * 10),
+  };
+}
+
+/** Default calendar widget size in grid cells (12×11). */
+export function defaultCalendarWidgetSize(gridSize: number): {
+  width: number;
+  height: number;
+} {
+  return {
+    width: Math.max(64, gridSize * 12),
+    height: Math.max(64, gridSize * 11),
+  };
+}
+
+/** Default holidays widget size in grid cells (10×10). */
+export function defaultHolidaysWidgetSize(gridSize: number): {
+  width: number;
+  height: number;
+} {
+  return {
+    width: Math.max(64, gridSize * 10),
+    height: Math.max(64, gridSize * 10),
+  };
+}
+
+/** Default wallpaper info widget size in grid cells (12×5). */
+export function defaultWallpaperInfoWidgetSize(gridSize: number): {
+  width: number;
+  height: number;
+} {
+  return {
+    width: Math.max(64, gridSize * 12),
+    height: Math.max(64, gridSize * 5),
+  };
+}
+
 /** Scan snapped slots from top-left for the first free placement. */
 export function findFirstFreeSlot(
   others: Rect[],

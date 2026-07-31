@@ -88,6 +88,71 @@ describe('WidgetSchema', () => {
     ).toMatchObject({ fontSize: 28, iconSize: 48 });
   });
 
+  it('parses note, todo, calendar, holidays, and wallpaperInfo widgets', () => {
+    expect(
+      WidgetSchema.parse({
+        ...baseRect,
+        type: 'note',
+      }),
+    ).toMatchObject({ type: 'note', title: '', text: '' });
+
+    expect(
+      WidgetSchema.parse({
+        ...baseRect,
+        type: 'todo',
+        title: 'Today',
+        items: [{ id: 't1', text: 'Ship widgets', done: true }],
+      }),
+    ).toMatchObject({
+      type: 'todo',
+      title: 'Today',
+      items: [{ id: 't1', text: 'Ship widgets', done: true }],
+    });
+
+    expect(
+      WidgetSchema.parse({
+        ...baseRect,
+        type: 'calendar',
+      }),
+    ).toMatchObject({ type: 'calendar', weekStartsOn: 'monday' });
+
+    expect(
+      WidgetSchema.parse({
+        ...baseRect,
+        type: 'holidays',
+        countryCode: 'tw',
+      }),
+    ).toMatchObject({ type: 'holidays', countryCode: 'TW', limit: 8 });
+
+    expect(
+      WidgetSchema.parse({
+        ...baseRect,
+        type: 'wallpaperInfo',
+      }),
+    ).toMatchObject({ type: 'wallpaperInfo', showCopyright: true });
+  });
+
+  it('rejects invalid holidays country codes and oversized todo lists', () => {
+    expect(
+      WidgetSchema.safeParse({
+        ...baseRect,
+        type: 'holidays',
+        countryCode: 'USA',
+      }).success,
+    ).toBe(false);
+    expect(
+      WidgetSchema.safeParse({
+        ...baseRect,
+        type: 'todo',
+        items: Array.from({ length: 51 }, (_, i) => ({
+          id: `t${i}`,
+          text: 'x',
+          done: false,
+        })),
+      }).success,
+    ).toBe(false);
+  });
+
   it('rejects out-of-range fontSize and iconSize', () => {
     expect(
       WidgetSchema.safeParse({

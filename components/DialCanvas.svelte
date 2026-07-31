@@ -4,7 +4,7 @@
   import GridOverlay from './GridOverlay.svelte';
   import type { Dial } from '../lib/schemas/dial';
   import type { Widget } from '../lib/schemas/widget';
-  import type { Settings } from '../lib/schemas/settings';
+  import type { Background, Settings } from '../lib/schemas/settings';
   import {
     clampRect,
     resolveDrop,
@@ -34,6 +34,7 @@
     searchQuery?: string;
     onDialsChange: (dials: Dial[], opts?: { immediate?: boolean }) => void;
     onWidgetsChange?: (widgets: Widget[], opts?: { immediate?: boolean }) => void;
+    onPatchWidget?: (widget: Widget) => void;
     onEditDial: (dial: Dial) => void;
     onEditWidget?: (widget: Widget) => void;
     onCanvasSizeChange?: (size: Size) => void;
@@ -51,6 +52,7 @@
     searchQuery = '',
     onDialsChange,
     onWidgetsChange,
+    onPatchWidget,
     onEditDial,
     onEditWidget,
     onCanvasSizeChange,
@@ -59,6 +61,8 @@
     onAddDial,
     onAddWidget,
   }: Props = $props();
+
+  const background = $derived(settings.background as Background);
 
   let canvasEl: HTMLDivElement | undefined = $state();
   let canvasSize = $state<Size>({ width: 1200, height: 800 });
@@ -424,7 +428,9 @@
       preview={Boolean(previewById[widget.id])}
       dragging={interaction?.kind === 'move' && interaction.id === widget.id}
       dimmed={hasQuery}
+      {background}
       onEdit={(w) => onEditWidget?.(w)}
+      onPatch={onPatchWidget}
       onMoveStart={onWidgetMoveStart}
       onResizeStart={onWidgetResizeStart}
       onContextMenu={(w, e) => onWidgetContextMenu?.(w, e)}

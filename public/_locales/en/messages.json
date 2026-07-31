@@ -110,6 +110,21 @@
   "editWeatherWidget": {
     "message": "Edit weather"
   },
+  "editNoteWidget": {
+    "message": "Edit note"
+  },
+  "editTodoWidget": {
+    "message": "Edit checklist"
+  },
+  "editCalendarWidget": {
+    "message": "Edit calendar"
+  },
+  "editHolidaysWidget": {
+    "message": "Edit holidays"
+  },
+  "editWallpaperInfoWidget": {
+    "message": "Edit wallpaper info"
+  },
   "pickWidget": {
     "message": "Choose a widget type to place on the canvas."
   },
@@ -124,6 +139,117 @@
   },
   "widgetWeatherHint": {
     "message": "Current conditions for a city or your location."
+  },
+  "widgetNote": {
+    "message": "Sticky note"
+  },
+  "widgetNoteHint": {
+    "message": "Free-form text note on the canvas."
+  },
+  "widgetTodo": {
+    "message": "Checklist"
+  },
+  "widgetTodoHint": {
+    "message": "Local todo list with checkboxes."
+  },
+  "widgetCalendar": {
+    "message": "Month calendar"
+  },
+  "widgetCalendarHint": {
+    "message": "Browse months with today highlighted."
+  },
+  "widgetHolidays": {
+    "message": "Public holidays"
+  },
+  "widgetHolidaysHint": {
+    "message": "Upcoming holidays for a country."
+  },
+  "widgetWallpaperInfo": {
+    "message": "Wallpaper info"
+  },
+  "widgetWallpaperInfoHint": {
+    "message": "Title and credit for the current wallpaper."
+  },
+  "noteTitlePlaceholder": {
+    "message": "Note title"
+  },
+  "noteTextPlaceholder": {
+    "message": "Write something…"
+  },
+  "noteEditorHint": {
+    "message": "Edit the note text directly on the canvas."
+  },
+  "todoTitlePlaceholder": {
+    "message": "Checklist title"
+  },
+  "todoAddPlaceholder": {
+    "message": "Add an item…"
+  },
+  "todoAdd": {
+    "message": "Add"
+  },
+  "todoRemoveItem": {
+    "message": "Remove item"
+  },
+  "todoClearCompleted": {
+    "message": "Clear completed"
+  },
+  "todoEditorHint": {
+    "message": "Manage checklist items directly on the canvas."
+  },
+  "calendarPrev": {
+    "message": "Previous month"
+  },
+  "calendarNext": {
+    "message": "Next month"
+  },
+  "calendarToday": {
+    "message": "Go to current month"
+  },
+  "calendarWeekStartsOn": {
+    "message": "Week starts on"
+  },
+  "calendarWeekStartsMonday": {
+    "message": "Monday"
+  },
+  "calendarWeekStartsSunday": {
+    "message": "Sunday"
+  },
+  "holidaysCountry": {
+    "message": "Country"
+  },
+  "holidaysCountrySearch": {
+    "message": "Search countries…"
+  },
+  "holidaysNoCountry": {
+    "message": "No country set yet."
+  },
+  "holidaysSetCountry": {
+    "message": "Set country"
+  },
+  "holidaysLoading": {
+    "message": "Loading holidays…"
+  },
+  "holidaysLoadingCountries": {
+    "message": "Loading countries…"
+  },
+  "holidaysFailed": {
+    "message": "Could not load holidays."
+  },
+  "holidaysCountriesFailed": {
+    "message": "Could not load countries."
+  },
+  "holidaysEmpty": {
+    "message": "No upcoming holidays."
+  },
+  "holidaysLimit": {
+    "message": "How many to show"
+  },
+  "wallpaperInfoShowCopyright": {
+    "message": "Show copyright / credit"
+  },
+  "wallpaperInfoWaiting": {
+    "message": "Switch to Bing daily wallpaper to see title and credit."
   },
   "clockFormat": {
     "message": "Time format"

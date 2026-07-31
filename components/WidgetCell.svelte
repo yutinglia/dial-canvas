@@ -1,9 +1,15 @@
 <script lang="ts">
   import { dialBackgroundCss } from '../lib/schemas/dial';
+  import type { Background } from '../lib/schemas/settings';
   import type { Widget } from '../lib/schemas/widget';
   import { t } from '../lib/i18n';
   import ClockWidgetView from './widgets/ClockWidget.svelte';
   import WeatherWidgetView from './widgets/WeatherWidget.svelte';
+  import NoteWidgetView from './widgets/NoteWidget.svelte';
+  import TodoWidgetView from './widgets/TodoWidget.svelte';
+  import CalendarWidgetView from './widgets/CalendarWidget.svelte';
+  import HolidaysWidgetView from './widgets/HolidaysWidget.svelte';
+  import WallpaperInfoWidgetView from './widgets/WallpaperInfoWidget.svelte';
 
   type ResizeHandle =
     | 'n'
@@ -22,7 +28,9 @@
     preview?: boolean;
     dragging?: boolean;
     dimmed?: boolean;
+    background?: Background;
     onEdit: (widget: Widget) => void;
+    onPatch?: (widget: Widget) => void;
     onMoveStart: (widget: Widget, event: PointerEvent) => void;
     onResizeStart: (
       widget: Widget,
@@ -39,7 +47,9 @@
     preview = false,
     dragging = false,
     dimmed = false,
+    background,
     onEdit,
+    onPatch,
     onMoveStart,
     onResizeStart,
     onContextMenu,
@@ -79,6 +89,16 @@
     return positions[handle];
   }
 
+  const ariaLabelKey: Record<Widget['type'], string> = {
+    clock: 'widgetClock',
+    weather: 'widgetWeather',
+    note: 'widgetNote',
+    todo: 'widgetTodo',
+    calendar: 'widgetCalendar',
+    holidays: 'widgetHolidays',
+    wallpaperInfo: 'widgetWallpaperInfo',
+  };
+
   const shellClass =
     'group absolute z-10 flex flex-col overflow-hidden rounded-lg border border-[var(--dial-border)] bg-[var(--dial-bg)] transition-[box-shadow,opacity,background,border-color] hover:bg-[var(--dial-bg-hover)] hover:border-[rgba(255,255,255,0.18)]';
 </script>
@@ -86,11 +106,35 @@
 {#snippet widgetBody()}
   {#if widget.type === 'clock'}
     <ClockWidgetView {widget} />
-  {:else}
+  {:else if widget.type === 'weather'}
     <WeatherWidgetView
       {widget}
       onSetLocation={editMode ? () => onEdit(widget) : undefined}
     />
+  {:else if widget.type === 'note'}
+    <NoteWidgetView
+      {widget}
+      {editMode}
+      onPatch={
+        onPatch
+          ? (next) => onPatch(next)
+          : undefined
+      }
+    />
+  {:else if widget.type === 'todo'}
+    <TodoWidgetView
+      {widget}
+      onPatch={onPatch ? (next) => onPatch(next) : undefined}
+    />
+  {:else if widget.type === 'calendar'}
+    <CalendarWidgetView {widget} />
+  {:else if widget.type === 'holidays'}
+    <HolidaysWidgetView
+      {widget}
+      onSetCountry={() => onEdit(widget)}
+    />
+  {:else if background}
+    <WallpaperInfoWidgetView {widget} {background} />
   {/if}
 {/snippet}
 
@@ -113,6 +157,9 @@
     tabindex="0"
     onpointerdown={(e) => {
       if ((e.target as HTMLElement).closest('[data-handle]')) return;
+      if ((e.target as HTMLElement).closest('input, textarea, button, select, a, [data-interactive]')) {
+        return;
+      }
       onMoveStart(widget, e);
     }}
     ondblclick={(e) => {
@@ -168,7 +215,7 @@
     style:opacity={dimmed ? 0.28 : 1}
     style:cursor={cursor}
     role="group"
-    aria-label={widget.type === 'clock' ? t('widgetClock') : t('widgetWeather')}
+    aria-label={t(ariaLabelKey[widget.type])}
     oncontextmenu={(e) => onContextMenu(widget, e)}
     ondblclick={(e) => {
       e.preventDefault();

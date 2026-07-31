@@ -173,6 +173,8 @@ describe('SettingsSchema', () => {
         fit: 'cover',
         cachedUrl: 'https://www.bing.com/th?id=OHR.example',
         cachedDate: '2026-08-01',
+        cachedTitle: 'Example peak',
+        cachedCopyright: '© Example Photographer',
         locked: true,
       },
     });
@@ -182,6 +184,8 @@ describe('SettingsSchema', () => {
       opacity: 1,
       cachedUrl: 'https://www.bing.com/th?id=OHR.example',
       cachedDate: '2026-08-01',
+      cachedTitle: 'Example peak',
+      cachedCopyright: '© Example Photographer',
       locked: true,
     });
   });

@@ -14,10 +14,17 @@ export type BingWallpaperItem = {
   thumbUrl: string;
   date: string;
   title?: string;
+  copyright?: string;
 };
 
 export type BingWallpaperResult =
-  | { ok: true; url: string; date: string }
+  | {
+      ok: true;
+      url: string;
+      date: string;
+      title?: string;
+      copyright?: string;
+    }
   | { ok: false; error: string };
 
 export type BingWallpaperListResult =
@@ -30,7 +37,14 @@ type BingArchiveImage = {
   startdate?: unknown;
   fullstartdate?: unknown;
   title?: unknown;
+  copyright?: unknown;
 };
+
+function optionalTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 type BingArchiveResponse = {
   images?: unknown;
@@ -107,16 +121,15 @@ function parseArchiveImage(
     (index === 0 ? fallbackDate : undefined);
   if (!date) return undefined;
 
-  const title =
-    typeof image.title === 'string' && image.title.trim()
-      ? image.title.trim()
-      : undefined;
+  const title = optionalTrimmedString(image.title);
+  const copyright = optionalTrimmedString(image.copyright);
 
   return {
     url,
     thumbUrl: buildBingThumbUrl(image.urlbase, url),
     date,
     ...(title ? { title } : {}),
+    ...(copyright ? { copyright } : {}),
   };
 }
 
@@ -140,9 +153,18 @@ export function parseBingWallpaperResponse(
     return { ok: false, error: 'Bing wallpaper URL missing.' };
   }
 
+  const title = optionalTrimmedString(first?.title);
+  const copyright = optionalTrimmedString(first?.copyright);
+
   // Freshness uses the fetch calendar day, not Bing's archive startdate
   // (which can lag UTC and would keep the cache looking stale forever).
-  return { ok: true, url, date: fallbackDate };
+  return {
+    ok: true,
+    url,
+    date: fallbackDate,
+    ...(title ? { title } : {}),
+    ...(copyright ? { copyright } : {}),
+  };
 }
 
 /** Parse Bing HPImageArchive JSON into a list of recent wallpapers. */

@@ -5,7 +5,12 @@
     isDialBackgroundColor,
   } from '../lib/schemas/dial';
   import type {
+    CalendarWidget,
     ClockWidget,
+    HolidaysWidget,
+    NoteWidget,
+    TodoWidget,
+    WallpaperInfoWidget,
     WeatherLocation,
     WeatherWidget,
     Widget,
@@ -17,6 +22,10 @@
     searchLocations,
     type GeocodeResult,
   } from '../lib/widgets/weather';
+  import {
+    fetchHolidayCountries,
+    type HolidayCountry,
+  } from '../lib/widgets/holidays';
 
   interface Props {
     open: boolean;
@@ -33,6 +42,12 @@
   let showDate = $state(true);
   let units = $state<'metric' | 'imperial'>('metric');
   let location = $state<WeatherLocation | undefined>(undefined);
+  let noteTitle = $state('');
+  let todoTitle = $state('');
+  let weekStartsOn = $state<'sunday' | 'monday'>('monday');
+  let countryCode = $state('');
+  let holidaysLimit = $state(8);
+  let showCopyright = $state(true);
   let fontSizeOverride = $state<number | null>(null);
   let iconSizeOverride = $state<number | null>(null);
   let backgroundColorOverride = $state<string | null>(null);
@@ -43,6 +58,9 @@
   let geoBusy = $state(false);
   let error = $state('');
   let searchSeq = 0;
+  let countries = $state<HolidayCountry[]>([]);
+  let countriesLoading = $state(false);
+  let countryFilter = $state('');
 
   const DEFAULT_WIDGET_FONT_SIZE = 28;
   const DEFAULT_WEATHER_ICON_SIZE = 28;
@@ -66,6 +84,36 @@
     iconSizeOverride ?? DEFAULT_WEATHER_ICON_SIZE,
   );
 
+  const filteredCountries = $derived.by(() => {
+    const q = countryFilter.trim().toLowerCase();
+    if (!q) return countries;
+    return countries.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.countryCode.toLowerCase().includes(q),
+    );
+  });
+
+  const editTitleKey = $derived.by(() => {
+    if (!widget) return 'editWidget';
+    switch (widget.type) {
+      case 'clock':
+        return 'editClockWidget';
+      case 'weather':
+        return 'editWeatherWidget';
+      case 'note':
+        return 'editNoteWidget';
+      case 'todo':
+        return 'editTodoWidget';
+      case 'calendar':
+        return 'editCalendarWidget';
+      case 'holidays':
+        return 'editHolidaysWidget';
+      case 'wallpaperInfo':
+        return 'editWallpaperInfoWidget';
+    }
+  });
+
   $effect(() => {
     if (!open || !widget) return;
     backgroundColorOverride = widget.backgroundColor ?? null;
@@ -74,17 +122,43 @@
     error = '';
     cityQuery = '';
     cityResults = [];
+    countryFilter = '';
+    iconSizeOverride = null;
+
     if (widget.type === 'clock') {
       format = widget.format;
       showSeconds = widget.showSeconds;
       showDate = widget.showDate;
-      iconSizeOverride = null;
-    } else {
+    } else if (widget.type === 'weather') {
       units = widget.units;
       location = widget.location;
       iconSizeOverride = widget.iconSize ?? null;
+    } else if (widget.type === 'note') {
+      noteTitle = widget.title;
+    } else if (widget.type === 'todo') {
+      todoTitle = widget.title;
+    } else if (widget.type === 'calendar') {
+      weekStartsOn = widget.weekStartsOn;
+    } else if (widget.type === 'holidays') {
+      countryCode = widget.countryCode ?? '';
+      holidaysLimit = widget.limit;
+      void loadCountries();
+    } else if (widget.type === 'wallpaperInfo') {
+      showCopyright = widget.showCopyright;
     }
   });
+
+  async function loadCountries() {
+    if (countries.length > 0 || countriesLoading) return;
+    countriesLoading = true;
+    const result = await fetchHolidayCountries();
+    countriesLoading = false;
+    if (result.ok) {
+      countries = result.countries;
+    } else {
+      error = t('holidaysCountriesFailed');
+    }
+  }
 
   async function runCitySearch() {
     const seq = ++searchSeq;
@@ -131,52 +205,92 @@
     error = '';
   }
 
+  function applySharedStyle<T extends Widget>(next: T): T {
+    if (fontSizeOverride != null) next.fontSize = fontSizeOverride;
+    else delete next.fontSize;
+    if (hasCustomBackground && isDialBackgroundColor(effectiveBackgroundColor)) {
+      next.backgroundColor = effectiveBackgroundColor.toLowerCase();
+      next.backgroundOpacity = effectiveBackgroundOpacity;
+    } else {
+      delete next.backgroundColor;
+      delete next.backgroundOpacity;
+    }
+    return next;
+  }
+
   function submit() {
     if (!widget) return;
     error = '';
 
-    const background =
-      hasCustomBackground && isDialBackgroundColor(effectiveBackgroundColor)
-        ? {
-            backgroundColor: effectiveBackgroundColor.toLowerCase(),
-            backgroundOpacity: effectiveBackgroundOpacity,
-          }
-        : {};
-
     if (widget.type === 'clock') {
-      const next: ClockWidget = {
-        ...widget,
-        format,
-        showSeconds,
-        showDate,
-        ...background,
-      };
-      if (fontSizeOverride != null) next.fontSize = fontSizeOverride;
-      else delete next.fontSize;
-      if (!hasCustomBackground) {
-        delete next.backgroundColor;
-        delete next.backgroundOpacity;
-      }
-      onSave(next);
+      onSave(
+        applySharedStyle({
+          ...widget,
+          format,
+          showSeconds,
+          showDate,
+        } satisfies ClockWidget),
+      );
       return;
     }
 
-    const next: WeatherWidget = {
-      ...widget,
-      units,
-      ...background,
-    };
-    if (location) next.location = location;
-    else delete next.location;
-    if (fontSizeOverride != null) next.fontSize = fontSizeOverride;
-    else delete next.fontSize;
-    if (iconSizeOverride != null) next.iconSize = iconSizeOverride;
-    else delete next.iconSize;
-    if (!hasCustomBackground) {
-      delete next.backgroundColor;
-      delete next.backgroundOpacity;
+    if (widget.type === 'weather') {
+      const next: WeatherWidget = { ...widget, units };
+      if (location) next.location = location;
+      else delete next.location;
+      if (iconSizeOverride != null) next.iconSize = iconSizeOverride;
+      else delete next.iconSize;
+      onSave(applySharedStyle(next));
+      return;
     }
-    onSave(next);
+
+    if (widget.type === 'note') {
+      onSave(
+        applySharedStyle({
+          ...widget,
+          title: noteTitle,
+        } satisfies NoteWidget),
+      );
+      return;
+    }
+
+    if (widget.type === 'todo') {
+      onSave(
+        applySharedStyle({
+          ...widget,
+          title: todoTitle,
+        } satisfies TodoWidget),
+      );
+      return;
+    }
+
+    if (widget.type === 'calendar') {
+      onSave(
+        applySharedStyle({
+          ...widget,
+          weekStartsOn,
+        } satisfies CalendarWidget),
+      );
+      return;
+    }
+
+    if (widget.type === 'holidays') {
+      const next: HolidaysWidget = {
+        ...widget,
+        limit: holidaysLimit,
+      };
+      if (countryCode) next.countryCode = countryCode.toUpperCase();
+      else delete next.countryCode;
+      onSave(applySharedStyle(next));
+      return;
+    }
+
+    onSave(
+      applySharedStyle({
+        ...widget,
+        showCopyright,
+      } satisfies WallpaperInfoWidget),
+    );
   }
 
   function onKeydown(event: KeyboardEvent) {
@@ -204,7 +318,7 @@
     >
       <div class="mb-3 flex items-center justify-between gap-2">
         <h2 class="text-base font-medium text-[var(--dial-title)]">
-          {widget.type === 'clock' ? t('editClockWidget') : t('editWeatherWidget')}
+          {t(editTitleKey)}
         </h2>
         <button
           type="button"
@@ -237,7 +351,7 @@
             <input type="checkbox" bind:checked={showDate} />
             {t('clockShowDate')}
           </label>
-        {:else}
+        {:else if widget.type === 'weather'}
           <label class="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
             {t('weatherUnits')}
             <select
@@ -314,6 +428,108 @@
               </ul>
             {/if}
           </div>
+        {:else if widget.type === 'note'}
+          <label class="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
+            {t('title')}
+            <input
+              class="rounded-md px-2 py-1.5 text-[var(--dial-title)]"
+              style:background="#14161c"
+              style:border="1px solid var(--dial-border)"
+              bind:value={noteTitle}
+              placeholder={t('noteTitlePlaceholder')}
+            />
+          </label>
+          <p class="text-xs text-[var(--text-muted)]">{t('noteEditorHint')}</p>
+        {:else if widget.type === 'todo'}
+          <label class="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
+            {t('title')}
+            <input
+              class="rounded-md px-2 py-1.5 text-[var(--dial-title)]"
+              style:background="#14161c"
+              style:border="1px solid var(--dial-border)"
+              bind:value={todoTitle}
+              placeholder={t('todoTitlePlaceholder')}
+            />
+          </label>
+          <p class="text-xs text-[var(--text-muted)]">{t('todoEditorHint')}</p>
+        {:else if widget.type === 'calendar'}
+          <label class="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
+            {t('calendarWeekStartsOn')}
+            <select
+              class="rounded-md px-2 py-1.5 text-[var(--dial-title)]"
+              style:background="#14161c"
+              style:border="1px solid var(--dial-border)"
+              bind:value={weekStartsOn}
+            >
+              <option value="monday">{t('calendarWeekStartsMonday')}</option>
+              <option value="sunday">{t('calendarWeekStartsSunday')}</option>
+            </select>
+          </label>
+        {:else if widget.type === 'holidays'}
+          <div class="flex flex-col gap-1">
+            <span class="text-sm text-[var(--text-muted)]">{t('holidaysCountry')}</span>
+            {#if countryCode}
+              <p class="text-sm text-[var(--dial-title)]">
+                {countries.find((c) => c.countryCode === countryCode)?.name ??
+                  countryCode}
+              </p>
+            {:else}
+              <p class="text-sm text-[var(--text-muted)]">{t('holidaysNoCountry')}</p>
+            {/if}
+            <input
+              class="mt-1 rounded-md px-2 py-1.5 text-sm text-[var(--dial-title)]"
+              style:background="#14161c"
+              style:border="1px solid var(--dial-border)"
+              placeholder={t('holidaysCountrySearch')}
+              bind:value={countryFilter}
+            />
+            {#if countriesLoading}
+              <p class="text-xs text-[var(--text-muted)]">{t('holidaysLoadingCountries')}</p>
+            {:else}
+              <ul
+                class="mt-1 max-h-40 overflow-y-auto rounded-md"
+                style:border="1px solid var(--dial-border)"
+              >
+                {#each filteredCountries as country (country.countryCode)}
+                  <li>
+                    <button
+                      type="button"
+                      class="block w-full px-2.5 py-1.5 text-left text-sm text-[var(--dial-title)] hover:bg-white/5 {country.countryCode ===
+                      countryCode
+                        ? 'bg-white/5'
+                        : ''}"
+                      onclick={() => {
+                        countryCode = country.countryCode;
+                        error = '';
+                      }}
+                    >
+                      {country.name}
+                      <span class="text-[var(--text-muted)]"
+                        >({country.countryCode})</span
+                      >
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+          <label class="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
+            {t('holidaysLimit')}
+            <input
+              type="number"
+              min="1"
+              max="20"
+              class="rounded-md px-2 py-1.5 text-[var(--dial-title)]"
+              style:background="#14161c"
+              style:border="1px solid var(--dial-border)"
+              bind:value={holidaysLimit}
+            />
+          </label>
+        {:else if widget.type === 'wallpaperInfo'}
+          <label class="flex items-center gap-2 text-sm text-[var(--dial-title)]">
+            <input type="checkbox" bind:checked={showCopyright} />
+            {t('wallpaperInfoShowCopyright')}
+          </label>
         {/if}
 
         <div class="flex flex-col gap-1">

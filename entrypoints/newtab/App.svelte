@@ -12,7 +12,12 @@
   import PageTabs from '../../components/PageTabs.svelte';
   import { createId } from '../../lib/id';
   import {
+    defaultCalendarWidgetSize,
     defaultClockWidgetSize,
+    defaultHolidaysWidgetSize,
+    defaultNoteWidgetSize,
+    defaultTodoWidgetSize,
+    defaultWallpaperInfoWidgetSize,
     defaultWeatherWidgetSize,
     findFirstFreeSlot,
     type Rect,
@@ -270,6 +275,10 @@
               cachedUrl: result.url,
               cachedDate: result.date,
               locked: false,
+              ...(result.title ? { cachedTitle: result.title } : {}),
+              ...(result.copyright
+                ? { cachedCopyright: result.copyright }
+                : {}),
             },
           },
         },
@@ -514,6 +523,12 @@
             ? {
                 cachedUrl: existing.cachedUrl,
                 cachedDate: existing.cachedDate,
+                ...(existing.cachedTitle
+                  ? { cachedTitle: existing.cachedTitle }
+                  : {}),
+                ...(existing.cachedCopyright
+                  ? { cachedCopyright: existing.cachedCopyright }
+                  : {}),
               }
             : {}),
         },
@@ -567,6 +582,8 @@
             cachedUrl: item.url,
             cachedDate,
             locked: options.locked,
+            ...(item.title ? { cachedTitle: item.title } : {}),
+            ...(item.copyright ? { cachedCopyright: item.copyright } : {}),
           },
         },
       },
@@ -654,10 +671,17 @@
     widgetPickerOpen = false;
     const dials = getActiveDials(store);
     const widgets = getActiveWidgets(store);
-    const size =
-      type === 'clock'
-        ? defaultClockWidgetSize(store.settings.gridSize)
-        : defaultWeatherWidgetSize(store.settings.gridSize);
+    const grid = store.settings.gridSize;
+    const sizeByType: Record<WidgetType, { width: number; height: number }> = {
+      clock: defaultClockWidgetSize(grid),
+      weather: defaultWeatherWidgetSize(grid),
+      note: defaultNoteWidgetSize(grid),
+      todo: defaultTodoWidgetSize(grid),
+      calendar: defaultCalendarWidgetSize(grid),
+      holidays: defaultHolidaysWidgetSize(grid),
+      wallpaperInfo: defaultWallpaperInfoWidgetSize(grid),
+    };
+    const size = sizeByType[type];
     const slot = findFirstFreeSlot(
       occupiedRects(dials, widgets),
       store.settings.gridSize,
@@ -670,23 +694,65 @@
       ...slot,
     };
 
-    const widget: Widget =
-      type === 'clock'
-        ? {
-            ...base,
-            type: 'clock',
-            format: '24h',
-            showSeconds: false,
-            showDate: true,
-          }
-        : {
-            ...base,
-            type: 'weather',
-            units: 'metric',
-          };
+    let widget: Widget;
+    switch (type) {
+      case 'clock':
+        widget = {
+          ...base,
+          type: 'clock',
+          format: '24h',
+          showSeconds: false,
+          showDate: true,
+        };
+        break;
+      case 'weather':
+        widget = {
+          ...base,
+          type: 'weather',
+          units: 'metric',
+        };
+        break;
+      case 'note':
+        widget = {
+          ...base,
+          type: 'note',
+          title: '',
+          text: '',
+        };
+        break;
+      case 'todo':
+        widget = {
+          ...base,
+          type: 'todo',
+          title: '',
+          items: [],
+        };
+        break;
+      case 'calendar':
+        widget = {
+          ...base,
+          type: 'calendar',
+          weekStartsOn: 'monday',
+        };
+        break;
+      case 'holidays':
+        widget = {
+          ...base,
+          type: 'holidays',
+          limit: 8,
+        };
+        break;
+      case 'wallpaperInfo':
+        widget = {
+          ...base,
+          type: 'wallpaperInfo',
+          showCopyright: true,
+        };
+        break;
+    }
 
     await persist(withActiveWidgets(store, [...widgets, widget]), true);
-    if (type === 'weather') {
+    if (type === 'weather' || type === 'holidays') {
       openEditWidget(widget);
     }
   }
@@ -698,6 +764,14 @@
     );
     await persist(withActiveWidgets(store, widgets), true);
     closeWidgetEditor();
+  }
+
+  function patchWidget(next: Widget) {
+    if (!store) return;
+    const widgets = getActiveWidgets(store).map((w) =>
+      w.id === next.id ? next : w,
+    );
+    void persist(withActiveWidgets(store, widgets), false);
   }
 
   async function deleteWidgetFromEditor() {
@@ -1041,6 +1115,7 @@
         searchQuery={searchOpen ? searchQuery : ''}
         {onDialsChange}
         {onWidgetsChange}
+        onPatchWidget={patchWidget}
         onEditDial={openEditDial}
         onEditWidget={openEditWidget}
         onCanvasSizeChange={(size) => (canvasSize = size)}

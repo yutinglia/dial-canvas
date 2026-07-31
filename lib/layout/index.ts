@@ -7,6 +7,11 @@ export {
   defaultDialSize,
   defaultClockWidgetSize,
   defaultWeatherWidgetSize,
+  defaultNoteWidgetSize,
+  defaultTodoWidgetSize,
+  defaultCalendarWidgetSize,
+  defaultHolidaysWidgetSize,
+  defaultWallpaperInfoWidgetSize,
   findFirstFreeSlot,
   type DropSettings,
 } from './placement';

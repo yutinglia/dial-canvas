@@ -10,6 +10,28 @@
 
   let { open, onClose, onPick }: Props = $props();
 
+  const options: { type: WidgetType; titleKey: string; hintKey: string }[] = [
+    { type: 'clock', titleKey: 'widgetClock', hintKey: 'widgetClockHint' },
+    { type: 'weather', titleKey: 'widgetWeather', hintKey: 'widgetWeatherHint' },
+    { type: 'note', titleKey: 'widgetNote', hintKey: 'widgetNoteHint' },
+    { type: 'todo', titleKey: 'widgetTodo', hintKey: 'widgetTodoHint' },
+    {
+      type: 'calendar',
+      titleKey: 'widgetCalendar',
+      hintKey: 'widgetCalendarHint',
+    },
+    {
+      type: 'holidays',
+      titleKey: 'widgetHolidays',
+      hintKey: 'widgetHolidaysHint',
+    },
+    {
+      type: 'wallpaperInfo',
+      titleKey: 'widgetWallpaperInfo',
+      hintKey: 'widgetWallpaperInfoHint',
+    },
+  ];
+
   function onKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') onClose();
   }
@@ -23,7 +45,7 @@
     onkeydown={onKeydown}
   >
     <div
-      class="w-full max-w-sm rounded-lg p-4 shadow-xl"
+      class="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-lg p-4 shadow-xl"
       style:background="#1e2229"
       style:border="1px solid var(--dial-border)"
       role="dialog"
@@ -47,32 +69,21 @@
       </div>
       <p class="mb-3 text-sm text-[var(--text-muted)]">{t('pickWidget')}</p>
       <div class="flex flex-col gap-2">
-        <button
-          type="button"
-          class="rounded-md px-3 py-3 text-left transition-colors hover:bg-white/5"
-          style:border="1px solid var(--dial-border)"
-          onclick={() => onPick('clock')}
-        >
-          <div class="text-sm font-medium text-[var(--dial-title)]">
-            {t('widgetClock')}
-          </div>
-          <div class="text-xs text-[var(--text-muted)]">
-            {t('widgetClockHint')}
-          </div>
-        </button>
-        <button
-          type="button"
-          class="rounded-md px-3 py-3 text-left transition-colors hover:bg-white/5"
-          style:border="1px solid var(--dial-border)"
-          onclick={() => onPick('weather')}
-        >
-          <div class="text-sm font-medium text-[var(--dial-title)]">
-            {t('widgetWeather')}
-          </div>
-          <div class="text-xs text-[var(--text-muted)]">
-            {t('widgetWeatherHint')}
-          </div>
-        </button>
+        {#each options as option (option.type)}
+          <button
+            type="button"
+            class="rounded-md px-3 py-3 text-left transition-colors hover:bg-white/5"
+            style:border="1px solid var(--dial-border)"
+            onclick={() => onPick(option.type)}
+          >
+            <div class="text-sm font-medium text-[var(--dial-title)]">
+              {t(option.titleKey)}
+            </div>
+            <div class="text-xs text-[var(--text-muted)]">
+              {t(option.hintKey)}
+            </div>
+          </button>
+        {/each}
       </div>
     </div>
   </div>

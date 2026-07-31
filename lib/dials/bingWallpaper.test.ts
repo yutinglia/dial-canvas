@@ -80,6 +80,8 @@ describe('parseBingWallpaperResponse', () => {
             {
               url: '/th?id=OHR.example_1920x1080.jpg',
               startdate: '20260801',
+              title: 'Example peak',
+              copyright: '© Example Photographer',
             },
           ],
         },
@@ -89,6 +91,8 @@ describe('parseBingWallpaperResponse', () => {
       ok: true,
       url: 'https://www.bing.com/th?id=OHR.example_1920x1080.jpg',
       date: '2026-08-02',
+      title: 'Example peak',
+      copyright: '© Example Photographer',
     });
   });
 
@@ -132,6 +136,7 @@ describe('parseBingWallpaperListResponse', () => {
               urlbase: '/th?id=OHR.today',
               startdate: '20260801',
               title: 'Today view',
+              copyright: '© Today Photographer',
             },
             {
               url: '/th?id=OHR.yesterday_1920x1080.jpg',
@@ -150,6 +155,7 @@ describe('parseBingWallpaperListResponse', () => {
           thumbUrl: 'https://www.bing.com/th?id=OHR.today_640x360.jpg',
           date: '2026-08-01',
           title: 'Today view',
+          copyright: '© Today Photographer',
         },
         {
           url: 'https://www.bing.com/th?id=OHR.yesterday_1920x1080.jpg',

@@ -60,6 +60,10 @@ export const BackgroundSchema = z.discriminatedUnion('type', [
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
+    /** Bing homepage title for the cached image (wallpaper info widget). */
+    cachedTitle: z.string().min(1).max(300).optional(),
+    /** Bing copyright / attribution for the cached image. */
+    cachedCopyright: z.string().min(1).max(500).optional(),
     /**
      * When true, keep the selected Bing image and skip daily auto-refresh
      * (used for past wallpapers from the recent picker).
