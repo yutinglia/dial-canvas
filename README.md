@@ -45,7 +45,8 @@ Also targets Chrome / Edge via WXT/MV3 (best-effort; Firefox is the primary test
 npm install
 npm run dev           # WXT + Firefox (web-ext)
 npm run build         # production build (Firefox MV3)
-npm run zip           # package for distribution
+npm run zip           # package for distribution (+ sources zip)
+npm run submit:firefox  # upload zips to AMO (needs env / secrets)
 npm run dev:chrome    # Chromium (best-effort)
 npm run build:chrome
 npm run check         # svelte-check
@@ -72,6 +73,57 @@ Temporary add-ons are removed when Firefox restarts, which normally clears `brow
 See [Testing persistent and restart features](https://extensionworkshop.com/documentation/develop/testing-persistent-and-restart-features/).
 
 Or use `npm run dev`, which launches Firefox with the extension loaded via web-ext.
+
+## Publishing to Firefox (AMO)
+
+Mozilla must sign the XPI. This repo uses GitHub Actions + [WXT submit](https://wxt.dev/guide/essentials/publishing) so JWT credentials stay in **GitHub Secrets** (never committed).
+
+Extension ID (public, in the manifest): `my-speed-dial@yutinglia.dev`
+
+### One-time setup
+
+1. Create / log into an [AMO Developer Hub](https://addons.mozilla.org/developers/) account.
+2. Create the addon listing once (name, screenshots, etc.). The Action submits **new versions** after that.
+3. Create API credentials (JWT issuer + secret) under AMO → **API Keys**.
+4. In the GitHub repo → **Settings → Secrets and variables → Actions**, add:
+
+| Secret | Value |
+| --- | --- |
+| `FIREFOX_EXTENSION_ID` | `my-speed-dial@yutinglia.dev` |
+| `FIREFOX_JWT_ISSUER` | AMO JWT issuer |
+| `FIREFOX_JWT_SECRET` | AMO JWT secret |
+
+Local `.env` / `.env.submit` files are gitignored. Do not commit them.
+
+### Release flow (bump → tag → AMO)
+
+Runs only from **`main`** (bump / manual release) or **`v*`** tags whose commit is on `main`.
+
+1. Actions → **Bump version** (branch: `main`) → choose `patch` / `minor` / `major` → **Run workflow**
+2. That commits the version bump, pushes tag `vX.Y.Z`, and triggers **Release Firefox**
+3. The tag run creates a **GitHub Release** (with zip assets) and submits to AMO **listed** (not dry-run)
+
+### CI
+
+**CI** runs `npm run check` and `npm test` on every push and pull request.
+
+### Dry-run / manual submit
+
+Use **Release Firefox** → **Run workflow** on branch **`main`** to validate credentials without publishing:
+
+1. First run with **dry_run = true** (validates secrets/zips without uploading)
+2. Optionally run with **dry_run = false** and channel `listed` or `unlisted`
+
+Listed uploads enter AMO review and publish on approval. Unlisted produces a signed XPI for self-distribution.
+
+### Local submit (optional)
+
+```bash
+npm run zip
+# export FIREFOX_EXTENSION_ID / FIREFOX_JWT_ISSUER / FIREFOX_JWT_SECRET
+npm run submit:firefox -- --firefox-channel listed --dry-run
+npm run submit:firefox -- --firefox-channel listed
+```
 
 ## Architecture
 

@@ -43,7 +43,7 @@ export default defineConfig({
     },
     browser_specific_settings: {
       gecko: {
-        id: 'my-speed-dial@local.dev',
+        id: 'my-speed-dial@yutinglia.dev',
         strict_min_version: '121.0',
       },
     },

@@ -1,0 +1,49 @@
+name: Bump version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver bump type
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bump version and tag
+        run: npm version ${{ inputs.bump }} -m "chore(release): %s"
+
+      - name: Push commit and tag
+        run: |
+          git push origin HEAD:main
+          git push origin --tags
