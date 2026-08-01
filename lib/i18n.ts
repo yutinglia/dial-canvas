@@ -55,8 +55,8 @@ export function getIntlLocale(): string | undefined {
 }
 
 const FALLBACKS: Record<string, string> = {
-  extName: 'My Speed Dial',
-  extDescription: 'A customizable free-form speed dial for your new tab page.',
+  extName: 'Dial Canvas',
+  extDescription: 'A customizable free-form dials and widgets canvas for your new tab page.',
   loading: 'Loading…',
   edit: 'Edit',
   done: 'Done',
@@ -82,7 +82,7 @@ const FALLBACKS: Record<string, string> = {
   importJson: 'Import JSON',
   resetDefaults: 'Reset to defaults',
   importSuccess: 'Import complete.',
-  importFailed: 'Import failed. Check that the file is a valid Speed Dial backup.',
+  importFailed: 'Import failed. Check that the file is a valid Dial Canvas backup.',
   exportFailed: 'Export failed.',
   resetDone: 'Reset to defaults.',
   copyUrl: 'Copy URL',
@@ -169,7 +169,7 @@ const FALLBACKS: Record<string, string> = {
   copyFailed: 'Could not copy URL.',
   saveFailed: 'Failed to save. Your latest changes are kept in this tab.',
   syncFailed: 'Failed to sync from storage.',
-  loadFailed: 'Failed to load speed dial data.',
+  loadFailed: 'Failed to load Dial Canvas data.',
   dialRemovedOne: '1 invalid dial was removed.',
   dialRemovedMany: '$1 invalid dials were removed.',
   widgetRemovedOne: '1 invalid widget was removed.',

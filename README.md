@@ -79,7 +79,7 @@ Or use `npm run dev`, which launches Firefox with the extension loaded via web-e
 
 Mozilla must sign the XPI. This repo uses GitHub Actions + [WXT submit](https://wxt.dev/guide/essentials/publishing) so JWT credentials stay in **GitHub Secrets** (never committed).
 
-Extension ID (public, in the manifest): `my-speed-dial@yutinglia.dev`
+Extension ID (public, in the manifest): `dial-canvas@yutinglia.dev`
 
 ### One-time setup
 
@@ -90,7 +90,7 @@ Extension ID (public, in the manifest): `my-speed-dial@yutinglia.dev`
 
 | Secret | Value |
 | --- | --- |
-| `FIREFOX_EXTENSION_ID` | `my-speed-dial@yutinglia.dev` |
+| `FIREFOX_EXTENSION_ID` | `dial-canvas@yutinglia.dev` |
 | `FIREFOX_JWT_ISSUER` | AMO JWT issuer |
 | `FIREFOX_JWT_SECRET` | AMO JWT secret |
 

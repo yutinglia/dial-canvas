@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Agent guide for **Dial Canvas** (`my-speed-dial-ext`). Human docs: [README.md](README.md).
+Agent guide for **Dial Canvas** (`dial-canvas-ext`). Human docs: [README.md](README.md).
 
 ## Project
 

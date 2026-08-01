@@ -1,6 +1,6 @@
 {
-  "name": "my-speed-dial-ext",
-  "description": "Firefox-first customizable speed dial new tab extension",
+  "name": "dial-canvas-ext",
+  "description": "Firefox-first Dial Canvas new tab extension",
   "private": true,
   "version": "0.1.0",
   "license": "MIT",

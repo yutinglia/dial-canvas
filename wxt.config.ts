@@ -40,7 +40,7 @@ export default defineConfig({
     },
     browser_specific_settings: {
       gecko: {
-        id: 'my-speed-dial@yutinglia.dev',
+        id: 'dial-canvas@yutinglia.dev',
         strict_min_version: '140.0',
         data_collection_permissions: {
           required: ['none'],
