@@ -30,6 +30,9 @@
   function isPageMidY(y: number): boolean {
     return Math.abs(y - pageMidY) < 0.5;
   }
+
+  const pageVActive = $derived(activeVertical.some(isPageMidX));
+  const pageHActive = $derived(activeHorizontal.some(isPageMidY));
 </script>
 
 {#if visible}
@@ -38,16 +41,16 @@
       <div
         class="absolute top-0 bottom-0 w-px"
         style:left="{pageMidX}px"
-        style:background={activeVertical.some(isPageMidX)
-          ? 'var(--align-guide-active)'
-          : 'var(--align-guide)'}
+        style:background={pageVActive
+          ? 'var(--align-guide-page-active)'
+          : 'var(--align-guide-page)'}
       ></div>
       <div
         class="absolute left-0 right-0 h-px"
         style:top="{pageMidY}px"
-        style:background={activeHorizontal.some(isPageMidY)
-          ? 'var(--align-guide-active)'
-          : 'var(--align-guide)'}
+        style:background={pageHActive
+          ? 'var(--align-guide-page-active)'
+          : 'var(--align-guide-page)'}
       ></div>
     {/if}
 
@@ -55,7 +58,7 @@
       <div
         class="absolute top-0 bottom-0 w-px"
         style:left="{x}px"
-        style:background="var(--align-guide-active)"
+        style:background="var(--align-guide-item-active)"
       ></div>
     {/each}
 
@@ -63,7 +66,7 @@
       <div
         class="absolute left-0 right-0 h-px"
         style:top="{y}px"
-        style:background="var(--align-guide-active)"
+        style:background="var(--align-guide-item-active)"
       ></div>
     {/each}
   </div>
