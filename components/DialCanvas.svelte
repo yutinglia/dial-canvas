@@ -75,6 +75,7 @@
 
   const background = $derived(settings.background as Background);
 
+  let viewportEl: HTMLDivElement | undefined = $state();
   let canvasEl: HTMLDivElement | undefined = $state();
   let canvasSize = $state<Size>({ width: 1200, height: 800 });
   let viewportSize = $state<Size>({ width: 1200, height: 800 });
@@ -160,11 +161,10 @@
   }
 
   function measureViewport() {
-    if (!canvasEl) return;
-    const parent = canvasEl.parentElement;
+    if (!viewportEl) return;
     const next = {
-      width: parent?.clientWidth || window.innerWidth,
-      height: parent?.clientHeight || window.innerHeight,
+      width: viewportEl.clientWidth || window.innerWidth,
+      height: viewportEl.clientHeight || window.innerHeight,
     };
     if (
       next.width === viewportSize.width &&
@@ -176,12 +176,11 @@
   }
 
   function measureCanvas() {
-    if (!canvasEl) return;
     // Skip while narrow so a temporary shrink does not reflow stored layout.
     if (!editMode && viewportSize.width < settings.narrowBreakpoint) return;
     const next = {
-      width: Math.max(settings.canvasMinWidth, canvasEl.clientWidth),
-      height: Math.max(settings.canvasMinHeight, canvasEl.clientHeight),
+      width: Math.max(settings.canvasMinWidth, viewportSize.width),
+      height: Math.max(settings.canvasMinHeight, viewportSize.height),
     };
     if (
       next.width === canvasSize.width &&
@@ -198,6 +197,14 @@
     measureCanvas();
   }
 
+  /** Center overflow when canvas min exceeds the viewport. */
+  const canvasOffsetX = $derived(
+    isNarrow ? 0 : (viewportSize.width - canvasSize.width) / 2,
+  );
+  const canvasOffsetY = $derived(
+    isNarrow ? 0 : (viewportSize.height - canvasSize.height) / 2,
+  );
+
   $effect(() => {
     void settings.canvasMinWidth;
     void settings.canvasMinHeight;
@@ -205,11 +212,7 @@
     void editMode;
     measureAll();
     const observer = new ResizeObserver(() => measureAll());
-    if (canvasEl) {
-      observer.observe(canvasEl);
-      const parent = canvasEl.parentElement;
-      if (parent) observer.observe(parent);
-    }
+    if (viewportEl) observer.observe(viewportEl);
     return () => observer.disconnect();
   });
 
@@ -473,102 +476,107 @@
   }
 </script>
 
-<div
-  bind:this={canvasEl}
-  class="relative h-full w-full overflow-hidden"
-  style:min-width={isNarrow ? undefined : `${settings.canvasMinWidth}px`}
-  style:min-height={isNarrow ? undefined : `${settings.canvasMinHeight}px`}
-  style:cursor={interaction?.kind === 'move' ? 'grabbing' : undefined}
-  role="presentation"
-  oncontextmenu={handleCanvasContextMenu}
->
-  <GridOverlay
-    gridSize={settings.gridSize}
-    visible={snapGuidesVisible && !isNarrow}
-    {canvasSize}
-    emphasized={interactionActive}
-  />
-  <AlignGuides
-    visible={snapGuidesVisible && !isNarrow}
-    {canvasSize}
-    activeGuides={activeGuideLines}
-  />
-
-  {#if isEmpty}
-    <div
-      class="pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 px-6 text-center"
-    >
-      <p class="text-base text-[var(--dial-title)]">{t('emptyCanvas')}</p>
-      <p class="text-sm text-[var(--text-muted)]">{t('emptyCanvasHint')}</p>
-      {#if editMode}
-        <div class="pointer-events-auto mt-2 flex flex-wrap items-center justify-center gap-2">
-          {#if onAddDial}
-            <button
-              type="button"
-              class="rounded-md px-3 py-1.5 text-sm"
-              style:background="var(--accent)"
-              style:color="#0f1216"
-              onclick={onAddDial}
-            >
-              + {t('addDial')}
-            </button>
-          {/if}
-          {#if onAddWidget}
-            <button
-              type="button"
-              class="rounded-md px-3 py-1.5 text-sm"
-              style:background="var(--toolbar-bg)"
-              style:border="1px solid var(--dial-border)"
-              style:color="var(--dial-title)"
-              onclick={onAddWidget}
-            >
-              + {t('addWidget')}
-            </button>
-          {/if}
-        </div>
-      {/if}
-    </div>
-  {:else if hasQuery && !visibleDials.some(matchesQuery)}
-    <div
-      class="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center px-6 text-center text-sm text-[var(--text-muted)]"
-    >
-      {t('searchNoResults')}
-    </div>
-  {/if}
-
-  {#each visibleDials as dial (dial.id)}
-    {@const rect = displayRect(dial)}
-    <DialCell
-      dial={{ ...dial, ...rect }}
-      {editMode}
-      selected={selectedId === dial.id}
-      preview={Boolean(previewById[dial.id])}
-      dragging={interaction?.kind === 'move' && interaction.id === dial.id}
-      dimmed={hasQuery && !matchesQuery(dial)}
-      iconSize={dial.iconSize ?? settings.iconSize}
-      fontSize={dial.fontSize ?? settings.fontSize}
-      onEdit={onEditDial}
-      onMoveStart={onDialMoveStart}
-      onResizeStart={onDialResizeStart}
-      {onContextMenu}
+<div bind:this={viewportEl} class="relative h-full w-full overflow-hidden">
+  <div
+    bind:this={canvasEl}
+    class="absolute overflow-hidden"
+    class:inset-0={isNarrow}
+    style:width={isNarrow ? undefined : `${canvasSize.width}px`}
+    style:height={isNarrow ? undefined : `${canvasSize.height}px`}
+    style:left={isNarrow ? undefined : `${canvasOffsetX}px`}
+    style:top={isNarrow ? undefined : `${canvasOffsetY}px`}
+    style:cursor={interaction?.kind === 'move' ? 'grabbing' : undefined}
+    role="presentation"
+    oncontextmenu={handleCanvasContextMenu}
+  >
+    <GridOverlay
+      gridSize={settings.gridSize}
+      visible={snapGuidesVisible && !isNarrow}
+      {canvasSize}
+      emphasized={interactionActive}
     />
-  {/each}
-
-  {#each visibleWidgets as widget (widget.id)}
-    {@const rect = displayRect(widget)}
-    <WidgetCell
-      widget={{ ...widget, ...rect }}
-      {editMode}
-      selected={selectedId === widget.id}
-      preview={Boolean(previewById[widget.id])}
-      dragging={interaction?.kind === 'move' && interaction.id === widget.id}
-      dimmed={hasQuery}
-      {background}
-      onEdit={(w) => onEditWidget?.(w)}
-      onPatch={onPatchWidget}
-      onMoveStart={onWidgetMoveStart}
-      onResizeStart={onWidgetResizeStart}
-      onContextMenu={(w, e) => onWidgetContextMenu?.(w, e)}
+    <AlignGuides
+      visible={snapGuidesVisible && !isNarrow}
+      {canvasSize}
+      activeGuides={activeGuideLines}
     />
-  {/each}
+
+    {#if isEmpty}
+      <div
+        class="pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 px-6 text-center"
+      >
+        <p class="text-base text-[var(--dial-title)]">{t('emptyCanvas')}</p>
+        <p class="text-sm text-[var(--text-muted)]">{t('emptyCanvasHint')}</p>
+        {#if editMode}
+          <div class="pointer-events-auto mt-2 flex flex-wrap items-center justify-center gap-2">
+            {#if onAddDial}
+              <button
+                type="button"
+                class="rounded-md px-3 py-1.5 text-sm"
+                style:background="var(--accent)"
+                style:color="#0f1216"
+                onclick={onAddDial}
+              >
+                + {t('addDial')}
+              </button>
+            {/if}
+            {#if onAddWidget}
+              <button
+                type="button"
+                class="rounded-md px-3 py-1.5 text-sm"
+                style:background="var(--toolbar-bg)"
+                style:border="1px solid var(--dial-border)"
+                style:color="var(--dial-title)"
+                onclick={onAddWidget}
+              >
+                + {t('addWidget')}
+              </button>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {:else if hasQuery && !visibleDials.some(matchesQuery)}
+      <div
+        class="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center px-6 text-center text-sm text-[var(--text-muted)]"
+      >
+        {t('searchNoResults')}
+      </div>
+    {/if}
+
+    {#each visibleDials as dial (dial.id)}
+      {@const rect = displayRect(dial)}
+      <DialCell
+        dial={{ ...dial, ...rect }}
+        {editMode}
+        selected={selectedId === dial.id}
+        preview={Boolean(previewById[dial.id])}
+        dragging={interaction?.kind === 'move' && interaction.id === dial.id}
+        dimmed={hasQuery && !matchesQuery(dial)}
+        iconSize={dial.iconSize ?? settings.iconSize}
+        fontSize={dial.fontSize ?? settings.fontSize}
+        onEdit={onEditDial}
+        onMoveStart={onDialMoveStart}
+        onResizeStart={onDialResizeStart}
+        {onContextMenu}
+      />
+    {/each}
+
+    {#each visibleWidgets as widget (widget.id)}
+      {@const rect = displayRect(widget)}
+      <WidgetCell
+        widget={{ ...widget, ...rect }}
+        {editMode}
+        selected={selectedId === widget.id}
+        preview={Boolean(previewById[widget.id])}
+        dragging={interaction?.kind === 'move' && interaction.id === widget.id}
+        dimmed={hasQuery}
+        {background}
+        onEdit={(w) => onEditWidget?.(w)}
+        onPatch={onPatchWidget}
+        onMoveStart={onWidgetMoveStart}
+        onResizeStart={onWidgetResizeStart}
+        onContextMenu={(w, e) => onWidgetContextMenu?.(w, e)}
+      />
+    {/each}
+  </div>
 </div>
