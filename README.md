@@ -1,6 +1,6 @@
-# My Speed Dial
+# Dial Canvas
 
-A Firefox-first browser extension that replaces the new tab page with a free-form, editable speed dial canvas.
+Free-form speed dial for your new tab — dials and widgets on a canvas.
 
 Also targets Chrome / Edge via WXT/MV3 (best-effort; Firefox is the primary test browser).
 
