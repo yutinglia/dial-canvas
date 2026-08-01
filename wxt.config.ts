@@ -5,16 +5,13 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   modules: ['@wxt-dev/module-svelte'],
   manifestVersion: 3,
-  suppressWarnings: {
-    firefoxDataCollection: true,
-  },
   manifest: {
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
     default_locale: 'en',
     permissions: ['storage', 'unlimitedStorage'],
     optional_permissions: ['bookmarks'],
-    host_permissions: ['http://*/*', 'https://*/*'],
+    optional_host_permissions: ['http://*/*', 'https://*/*'],
     icons: {
       16: 'icons/icon-16.png',
       32: 'icons/icon-32.png',
@@ -44,9 +41,16 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: 'my-speed-dial@yutinglia.dev',
-        strict_min_version: '121.0',
+        strict_min_version: '140.0',
+        data_collection_permissions: {
+          required: ['none'],
+          optional: ['locationInfo'],
+        },
       },
     },
+  },
+  zip: {
+    excludeSources: ['coverage/**'],
   },
   vite: () => ({
     plugins: [tailwindcss()],

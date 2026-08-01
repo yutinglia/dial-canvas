@@ -22,10 +22,12 @@
     searchLocations,
     type GeocodeResult,
   } from '../lib/widgets/weather';
+  import { requestWeatherNetworkAccess } from '../lib/widgets/weatherNetworkAccess';
   import {
     fetchHolidayCountries,
     type HolidayCountry,
   } from '../lib/widgets/holidays';
+  import { requestFetchHostPermission } from '../lib/dials/hostPermission';
 
   interface Props {
     open: boolean;
@@ -156,6 +158,13 @@
   async function loadCountries() {
     if (countries.length > 0 || countriesLoading) return;
     countriesLoading = true;
+    error = '';
+    const allowed = await requestFetchHostPermission();
+    if (!allowed) {
+      countriesLoading = false;
+      error = t('holidaysHostPermission');
+      return;
+    }
     const result = await fetchHolidayCountries();
     countriesLoading = false;
     if (result.ok) {
@@ -169,6 +178,14 @@
     const seq = ++searchSeq;
     searching = true;
     error = '';
+    const allowed = await requestWeatherNetworkAccess();
+    if (!allowed) {
+      if (seq !== searchSeq) return;
+      searching = false;
+      error = t('weatherLocationPermission');
+      cityResults = [];
+      return;
+    }
     const result = await searchLocations(cityQuery);
     if (seq !== searchSeq) return;
     searching = false;
@@ -187,6 +204,11 @@
     geoBusy = true;
     error = '';
     try {
+      const allowed = await requestWeatherNetworkAccess();
+      if (!allowed) {
+        error = t('weatherLocationPermission');
+        return;
+      }
       const coords = await requestBrowserGeolocation();
       const resolved = await reverseGeocode(coords.latitude, coords.longitude);
       location = resolved;

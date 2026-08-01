@@ -5,6 +5,7 @@
     formatHolidayDate,
     type PublicHoliday,
   } from '../../lib/widgets/holidays';
+  import { hasFetchHostPermission } from '../../lib/dials/hostPermission';
   import { t } from '../../lib/i18n';
 
   interface Props {
@@ -17,6 +18,7 @@
   let holidays = $state<PublicHoliday[]>([]);
   let loading = $state(false);
   let error = $state('');
+  let needsPermission = $state(false);
   let fetchSeq = 0;
 
   async function loadHolidays() {
@@ -24,12 +26,22 @@
     if (!code) {
       holidays = [];
       error = '';
+      needsPermission = false;
       loading = false;
       return;
     }
     const seq = ++fetchSeq;
     loading = true;
     error = '';
+    needsPermission = false;
+    const allowed = await hasFetchHostPermission();
+    if (seq !== fetchSeq) return;
+    if (!allowed) {
+      loading = false;
+      holidays = [];
+      needsPermission = true;
+      return;
+    }
     const result = await fetchNextPublicHolidays(code, widget.limit);
     if (seq !== fetchSeq) return;
     loading = false;
@@ -60,6 +72,22 @@
 
   {#if !widget.countryCode}
     <p class="text-sm text-[var(--text-muted)]">{t('holidaysNoCountry')}</p>
+    {#if onSetCountry}
+      <button
+        type="button"
+        class="mt-1 self-start rounded-md px-2.5 py-1 text-xs"
+        style:background="var(--accent)"
+        style:color="#0f1216"
+        onclick={(e) => {
+          e.stopPropagation();
+          onSetCountry();
+        }}
+      >
+        {t('holidaysSetCountry')}
+      </button>
+    {/if}
+  {:else if needsPermission}
+    <p class="text-sm text-[var(--text-muted)]">{t('holidaysHostPermission')}</p>
     {#if onSetCountry}
       <button
         type="button"
