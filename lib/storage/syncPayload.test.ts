@@ -154,9 +154,34 @@ describe('buildSyncItems / reassemble', () => {
     const reassembled = reassembleSyncStoreJson(
       built.items as Record<string, unknown>,
     );
-    expect(reassembled).not.toBeNull();
-    expect(reassembled!.updatedAt).toBe(1_700_000_000_000);
-    expect(JSON.parse(reassembled!.json)).toEqual(slim);
+    expect(reassembled.ok).toBe(true);
+    if (!reassembled.ok) return;
+    expect(reassembled.updatedAt).toBe(1_700_000_000_000);
+    expect(JSON.parse(reassembled.json)).toEqual(slim);
+  });
+
+  it('reports empty when sync area has no payload', () => {
+    expect(reassembleSyncStoreJson({})).toEqual({
+      ok: false,
+      reason: 'empty',
+    });
+  });
+
+  it('reports incomplete when meta exists but a chunk is missing', () => {
+    expect(
+      reassembleSyncStoreJson({
+        [SYNC_META_KEY]: { updatedAt: 1, chunkCount: 2 },
+        [syncChunkKey(0)]: '{"version":4}',
+      }),
+    ).toEqual({ ok: false, reason: 'incomplete' });
+  });
+
+  it('reports incomplete when chunk keys exist without valid meta', () => {
+    expect(
+      reassembleSyncStoreJson({
+        [syncChunkKey(0)]: '{"version":4}',
+      }),
+    ).toEqual({ ok: false, reason: 'incomplete' });
   });
 
   it('splits large JSON across multiple chunks under per-item budget', () => {

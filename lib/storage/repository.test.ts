@@ -151,6 +151,7 @@ describe('getStore migrate write-back', () => {
         activePageId: 'page-home',
         settings: DEFAULT_SETTINGS,
       },
+      [STORAGE_KEYS.localUpdatedAt]: 42,
     });
 
     const loaded = await getStore();
@@ -162,6 +163,34 @@ describe('getStore migrate write-back', () => {
 
     const stored = await browser.storage.local.get(STORAGE_KEYS.store);
     expect(stored[STORAGE_KEYS.store]).toEqual(loaded.store);
+    // Repair write-back must not advance the Sync LWW clock.
+    const clock = await browser.storage.local.get(STORAGE_KEYS.localUpdatedAt);
+    expect(clock[STORAGE_KEYS.localUpdatedAt]).toBe(42);
+  });
+
+  it('does not write back a future store version', async () => {
+    const future = {
+      version: STORE_VERSION + 5,
+      pages: [
+        {
+          id: 'page-home',
+          name: 'Home',
+          dials: [validDial],
+          widgets: [],
+          futureField: true,
+        },
+      ],
+      activePageId: 'page-home',
+      settings: DEFAULT_SETTINGS,
+    };
+    await browser.storage.local.set({ [STORAGE_KEYS.store]: future });
+
+    const loaded = await getStore();
+    expect(loaded.unsupportedVersion).toBe(true);
+    expect(loaded.repaired).toBe(false);
+
+    const stored = await browser.storage.local.get(STORAGE_KEYS.store);
+    expect(stored[STORAGE_KEYS.store]).toEqual(future);
   });
 
   it('migrates v1 payloads and write-backs current version', async () => {
@@ -198,6 +227,18 @@ describe('createDebouncedSaver', () => {
     expect(saver.hasPending()).toBe(false);
     saver.schedule(sampleStore());
     expect(saver.hasPending()).toBe(true);
+  });
+
+  it('discard clears pending without writing', async () => {
+    const saver = createDebouncedSaver(60_000);
+    const spy = vi.spyOn(browser.storage.local, 'set');
+    saver.schedule(sampleStore());
+    expect(saver.peekPending()).toBeDefined();
+    saver.discard();
+    expect(saver.hasPending()).toBe(false);
+    expect(saver.peekPending()).toBeUndefined();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it('reports errors and keeps pending after a failed saveNow', async () => {

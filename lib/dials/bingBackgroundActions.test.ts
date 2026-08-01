@@ -189,6 +189,39 @@ describe('ensureBingWallpaper', () => {
     expect(deps.persist).not.toHaveBeenCalled();
   });
 
+  it('skips persist when wallpaper becomes locked mid-fetch', async () => {
+    let store: Store = bingStore({ locked: false });
+    const deps = makeDeps(null);
+    deps.getStore = () => store;
+    requestBingWallpaper.mockImplementation(async () => {
+      store = bingStore({
+        locked: true,
+        cachedUrl: 'https://example.com/locked.jpg',
+        cachedDate: '2026-07-01',
+      });
+      return {
+        ok: true,
+        url: 'https://example.com/daily.jpg',
+        date: '2026-08-01',
+      };
+    });
+    await ensureBingWallpaper(deps, true);
+    expect(deps.persist).not.toHaveBeenCalled();
+    expect(applyBackground).toHaveBeenCalledWith(store.settings);
+  });
+
+  it('does not fetch when already locked and not forced', async () => {
+    const store = bingStore({
+      locked: true,
+      cachedUrl: 'https://example.com/locked.jpg',
+      cachedDate: '2026-07-01',
+    });
+    const deps = makeDeps(store);
+    await ensureBingWallpaper(deps, false);
+    expect(requestBingWallpaper).not.toHaveBeenCalled();
+    expect(applyBackground).toHaveBeenCalledWith(store.settings);
+  });
+
   it('skips persist when the fetched wallpaper already matches cache', async () => {
     const store = bingStore({
       cachedUrl: 'https://example.com/same.jpg',

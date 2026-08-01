@@ -57,4 +57,24 @@ describe('migrateStoreWithMeta edge cases', () => {
     expect(result.store.version).toBe(STORE_VERSION);
     expect(result.store.settings.gridSize).toBe(DEFAULT_SETTINGS.gridSize);
   });
+
+  it('marks future store versions as unsupported without repair write-back', () => {
+    const result = migrateStoreWithMeta({
+      version: STORE_VERSION + 1,
+      pages: [
+        {
+          id: 'page-home',
+          name: 'Home',
+          dials: [validDial],
+          widgets: [],
+        },
+      ],
+      activePageId: 'page-home',
+      settings: DEFAULT_SETTINGS,
+    });
+    expect(result.unsupportedVersion).toBe(true);
+    expect(result.repaired).toBe(false);
+    expect(result.store.version).toBe(STORE_VERSION);
+    expect(getActiveWidgets(result.store)).toEqual([]);
+  });
 });

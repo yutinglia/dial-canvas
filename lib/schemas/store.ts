@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import { DialSchema, type Dial } from './dial';
 import { DEFAULT_SETTINGS, SettingsSchema, type Settings } from './settings';
-import { WidgetSchema, type Widget } from './widget';
+import {
+  MAX_NOTE_TEXT_LENGTH,
+  MAX_TODO_ITEMS,
+  MAX_TODO_ITEM_TEXT_LENGTH,
+  TodoItemSchema,
+  WidgetSchema,
+  type Widget,
+} from './widget';
 
 export const STORE_VERSION = 4 as const;
 
@@ -38,6 +45,11 @@ export type ParseStoreResult = {
   repaired: boolean;
   droppedDialCount: number;
   droppedWidgetCount: number;
+  /**
+   * True when the payload version is newer than this build understands.
+   * Callers must not write the coerced store back (would destroy newer fields).
+   */
+  unsupportedVersion?: boolean;
 };
 
 const DEFAULT_PAGE_ID = 'page-home';
@@ -115,24 +127,76 @@ function parsePageDials(rawDials: unknown): {
   return { dials, droppedDialCount };
 }
 
+/**
+ * Soft-repair note/todo widgets that fail strict parse only due to oversized
+ * text/items — keep the widget instead of dropping it entirely.
+ */
+function softRepairWidget(item: unknown): Widget | null {
+  if (!item || typeof item !== 'object') return null;
+  const record = item as Record<string, unknown>;
+  if (record.type === 'note') {
+    const title =
+      typeof record.title === 'string' ? record.title.slice(0, 120) : '';
+    const text =
+      typeof record.text === 'string'
+        ? record.text.slice(0, MAX_NOTE_TEXT_LENGTH)
+        : '';
+    const repaired = WidgetSchema.safeParse({ ...record, title, text });
+    return repaired.success ? repaired.data : null;
+  }
+  if (record.type === 'todo') {
+    const title =
+      typeof record.title === 'string' ? record.title.slice(0, 120) : '';
+    const rawItems = Array.isArray(record.items) ? record.items : [];
+    const items: unknown[] = [];
+    for (const raw of rawItems) {
+      if (items.length >= MAX_TODO_ITEMS) break;
+      if (!raw || typeof raw !== 'object') continue;
+      const row = raw as Record<string, unknown>;
+      const parsed = TodoItemSchema.safeParse({
+        ...row,
+        text:
+          typeof row.text === 'string'
+            ? row.text.slice(0, MAX_TODO_ITEM_TEXT_LENGTH)
+            : row.text,
+      });
+      if (parsed.success) items.push(parsed.data);
+    }
+    const repaired = WidgetSchema.safeParse({ ...record, title, items });
+    return repaired.success ? repaired.data : null;
+  }
+  return null;
+}
+
 function parsePageWidgets(rawWidgets: unknown): {
   widgets: Widget[];
   droppedWidgetCount: number;
+  repaired: boolean;
 } {
   const widgets: Widget[] = [];
   let droppedWidgetCount = 0;
+  let repaired = false;
   if (rawWidgets === undefined) {
-    return { widgets, droppedWidgetCount };
+    return { widgets, droppedWidgetCount, repaired };
   }
   if (!Array.isArray(rawWidgets)) {
-    return { widgets, droppedWidgetCount: 1 };
+    return { widgets, droppedWidgetCount: 1, repaired: true };
   }
   for (const item of rawWidgets) {
     const widget = WidgetSchema.safeParse(item);
-    if (widget.success) widgets.push(widget.data);
-    else droppedWidgetCount += 1;
+    if (widget.success) {
+      widgets.push(widget.data);
+      continue;
+    }
+    const soft = softRepairWidget(item);
+    if (soft) {
+      widgets.push(soft);
+      repaired = true;
+      continue;
+    }
+    droppedWidgetCount += 1;
   }
-  return { widgets, droppedWidgetCount };
+  return { widgets, droppedWidgetCount, repaired };
 }
 
 function parsePages(rawPages: unknown): {
@@ -174,7 +238,11 @@ function parsePages(rawPages: unknown): {
     const parsedWidgets = parsePageWidgets(record.widgets);
     droppedDialCount += parsedDials.droppedDialCount;
     droppedWidgetCount += parsedWidgets.droppedWidgetCount;
-    if (parsedDials.droppedDialCount > 0 || parsedWidgets.droppedWidgetCount > 0) {
+    if (
+      parsedDials.droppedDialCount > 0 ||
+      parsedWidgets.droppedWidgetCount > 0 ||
+      parsedWidgets.repaired
+    ) {
       repaired = true;
     }
     if (record.widgets === undefined) repaired = true;

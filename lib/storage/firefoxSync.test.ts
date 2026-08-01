@@ -220,4 +220,26 @@ describe('firefox sync LWW', () => {
     const chunk = area[syncChunkKey(0)] as string;
     expect(JSON.parse(chunk).settings.gridSize).toBe(28);
   });
+
+  it('setSyncEnabled does not push over an incomplete remote payload', async () => {
+    await browser.storage.sync.set({
+      [SYNC_META_KEY]: { updatedAt: 99, chunkCount: 2 },
+      [syncChunkKey(0)]: '{"version":4}',
+    });
+    const store = sampleStore({
+      settings: { ...DEFAULT_SETTINGS, gridSize: 12 },
+    });
+    await setStore(store, { skipSyncPush: true, updatedAt: 50 });
+
+    const spy = vi.spyOn(browser.storage.sync, 'set');
+    const result = await setSyncEnabled(true, store);
+    expect(result.action).toBe('error');
+    // Only the enable flag write / status — not a full payload push replacing chunks.
+    const pushCalls = spy.mock.calls.filter((call) => {
+      const items = call[0] as Record<string, unknown>;
+      return SYNC_META_KEY in items && syncChunkKey(0) in items;
+    });
+    expect(pushCalls).toHaveLength(0);
+    expect((await getSyncStatus()).lastError).toBe('unknown');
+  });
 });

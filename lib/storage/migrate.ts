@@ -63,6 +63,16 @@ export function migrateStoreWithMeta(raw: unknown): ParseStoreResult {
       return parseStoreWithMeta(raw);
     }
 
+    // Newer build wrote this — do not coerce/persist a downgraded shape.
+    if (typeof version === 'number' && version > STORE_VERSION) {
+      const parsed = parseStoreWithMeta(raw);
+      return {
+        ...parsed,
+        repaired: false,
+        unsupportedVersion: true,
+      };
+    }
+
     if (version === 3) {
       const migrated = migrateV3ToV4(record);
       const parsed = parseStoreWithMeta(migrated);

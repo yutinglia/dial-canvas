@@ -43,6 +43,7 @@
     getSyncStatus,
     handleSyncStorageChanged,
     mergeFromSync,
+    registerBeforeRemotePersist,
     setSyncEnabled,
     type SyncStatus,
   } from '../../lib/storage/firefoxSync';
@@ -73,6 +74,7 @@
     type DialEditorValues,
   } from '../../lib/dials/fromEditor';
   import { createWidget, defaultSizeForType } from '../../lib/widgets/createWidget';
+  import { normalizeWidgetForPersist } from '../../lib/widgets/normalizeWidget';
   import { clampMenuPosition } from '../../lib/ui/contextMenuPosition';
   import {
     addPage as addPageAction,
@@ -166,6 +168,11 @@
     },
   });
 
+  // Discard pending local flushes before Sync writes remote into storage.local.
+  registerBeforeRemotePersist(() => {
+    saver.discard();
+  });
+
   function showToast(message: string) {
     toastMessage = message;
     if (toastTimer) clearTimeout(toastTimer);
@@ -202,12 +209,14 @@
 
   async function reconcileFromStorage() {
     try {
-      if (saver.hasPending()) {
-        await saver.flush();
-      }
+      // External storage won — do not flush stale pending over it.
+      saver.discard();
       const loaded = await getStore();
       await applyRemoteStore(loaded.store);
       notifyDroppedItems(loaded.droppedDialCount, loaded.droppedWidgetCount);
+      if (loaded.unsupportedVersion) {
+        showToast(t('storeVersionUnsupported'));
+      }
     } catch {
       showToast(t('syncFailed'));
     }
@@ -268,6 +277,9 @@
           void ensureBingWallpaper(bingDeps(), false);
         }
         notifyDroppedItems(loaded.droppedDialCount, loaded.droppedWidgetCount);
+        if (loaded.unsupportedVersion) {
+          showToast(t('storeVersionUnsupported'));
+        }
 
         // Local already present: still pull if Firefox Sync has a newer revision.
         const merged = await mergeFromSync();
@@ -387,13 +399,17 @@
       if (!change || change.newValue === undefined) return;
 
       void (async () => {
-        if (saver.hasPending()) {
-          await reconcileFromStorage();
-          return;
-        }
         if (!store) return;
         const remote = migrateStore(change.newValue);
         if (storesEqual(store, remote)) return;
+
+        if (saver.hasPending()) {
+          const pending = saver.peekPending();
+          // Own write echo while newer in-memory edits are queued: keep pending.
+          if (pending && storesEqual(store, pending)) return;
+          // External overwrite (Sync / other tab): drop stale pending.
+          saver.discard();
+        }
         await applyRemoteStore(remote);
       })();
     };
@@ -412,6 +428,7 @@
     browser.runtime.onMessage.addListener(onMessage);
 
     return () => {
+      registerBeforeRemotePersist(null);
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pagehide', onPageHide);
       document.removeEventListener('visibilitychange', onVisibilityChange);
@@ -439,12 +456,40 @@
 
   function onDialsChange(dials: Dial[], opts?: { immediate?: boolean }) {
     if (!store) return;
-    void persist(withActiveDials(store, dials), opts?.immediate ?? true);
+    // Canvas passes full dial objects from possibly-stale props; merge only
+    // geometry against the latest store so concurrent body edits survive.
+    const current = getActiveDials(store);
+    const byId = new Map(dials.map((d) => [d.id, d]));
+    const merged = current.map((d) => {
+      const next = byId.get(d.id);
+      if (!next) return d;
+      return {
+        ...d,
+        x: next.x,
+        y: next.y,
+        width: next.width,
+        height: next.height,
+      };
+    });
+    void persist(withActiveDials(store, merged), opts?.immediate ?? true);
   }
 
   function onWidgetsChange(widgets: Widget[], opts?: { immediate?: boolean }) {
     if (!store) return;
-    void persist(withActiveWidgets(store, widgets), opts?.immediate ?? true);
+    const current = getActiveWidgets(store);
+    const byId = new Map(widgets.map((w) => [w.id, w]));
+    const merged = current.map((w) => {
+      const next = byId.get(w.id);
+      if (!next) return w;
+      return {
+        ...w,
+        x: next.x,
+        y: next.y,
+        width: next.width,
+        height: next.height,
+      };
+    });
+    void persist(withActiveWidgets(store, merged), opts?.immediate ?? true);
   }
 
   /** Lock freeform layout size once; never rewrites dial/widget positions. */
@@ -593,8 +638,9 @@
 
   async function saveWidget(next: Widget) {
     if (!store) return;
+    const normalized = normalizeWidgetForPersist(next);
     const widgets = getActiveWidgets(store).map((w) =>
-      w.id === next.id ? next : w,
+      w.id === normalized.id ? normalized : w,
     );
     await persist(withActiveWidgets(store, widgets), true);
     closeWidgetEditor();
@@ -602,8 +648,9 @@
 
   function patchWidget(next: Widget) {
     if (!store) return;
+    const normalized = normalizeWidgetForPersist(next);
     const widgets = getActiveWidgets(store).map((w) =>
-      w.id === next.id ? next : w,
+      w.id === normalized.id ? normalized : w,
     );
     void persist(withActiveWidgets(store, widgets), false);
   }

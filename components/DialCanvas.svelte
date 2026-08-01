@@ -98,8 +98,11 @@
         kind: 'move';
         id: string;
         itemKind: CanvasKind;
+        /** Layout-space drag origin (accounts for CSS fit scale). */
         startX: number;
         startY: number;
+        startClientX: number;
+        startClientY: number;
         origin: Rect;
         origins: Record<string, Rect>;
         pointerId: number;
@@ -112,6 +115,8 @@
         handle: ResizeHandle;
         startX: number;
         startY: number;
+        startClientX: number;
+        startClientY: number;
         origin: Rect;
         pointerId: number;
         moved: boolean;
@@ -295,11 +300,10 @@
   $effect(() => {
     if (editMode) return;
     selectedIds = [];
-    previewById = {};
     if (interaction) {
-      interaction = null;
-      detachWindowListeners();
+      commitActiveInteraction();
     }
+    previewById = {};
   });
 
   function itemRect(item: { x: number; y: number; width: number; height: number }): Rect {
@@ -387,7 +391,26 @@
     window.addEventListener('pointercancel', onPointerUp);
   }
 
+  /** Revert live geometry to interaction origins without resolving snap/drop. */
+  function revertActiveInteraction() {
+    const active = interaction;
+    if (!active) return;
+    if (active.kind === 'move') {
+      applyRectsToStore(active.origins, { immediate: true });
+      clearPreviewIds(Object.keys(active.origins));
+    } else if (active.kind === 'resize') {
+      applyRectsToStore({ [active.id]: active.origin }, { immediate: true });
+      clearPreviewIds([active.id]);
+    }
+    interaction = null;
+    detachWindowListeners();
+  }
+
   function beginInteraction(next: Interaction) {
+    if (interaction) {
+      // Nested / second pointer — revert prior work and take the new gesture.
+      revertActiveInteraction();
+    }
     interaction = next;
     attachWindowListeners();
   }
@@ -452,12 +475,15 @@
       selectedIds = [dial.id];
     }
     const origins = buildMoveOrigins(dial.id, origin);
+    const point = clientToCanvas(event.clientX, event.clientY);
     beginInteraction({
       kind: 'move',
       id: dial.id,
       itemKind: 'dial',
-      startX: event.clientX,
-      startY: event.clientY,
+      startX: point.x,
+      startY: point.y,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
       origin,
       origins,
       pointerId: event.pointerId,
@@ -473,13 +499,16 @@
     if (!editMode) return;
     event.preventDefault();
     selectedIds = [dial.id];
+    const point = clientToCanvas(event.clientX, event.clientY);
     beginInteraction({
       kind: 'resize',
       id: dial.id,
       itemKind: 'dial',
       handle,
-      startX: event.clientX,
-      startY: event.clientY,
+      startX: point.x,
+      startY: point.y,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
       origin: itemRect(dial),
       pointerId: event.pointerId,
       moved: false,
@@ -494,12 +523,15 @@
       selectedIds = [widget.id];
     }
     const origins = buildMoveOrigins(widget.id, origin);
+    const point = clientToCanvas(event.clientX, event.clientY);
     beginInteraction({
       kind: 'move',
       id: widget.id,
       itemKind: 'widget',
-      startX: event.clientX,
-      startY: event.clientY,
+      startX: point.x,
+      startY: point.y,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
       origin,
       origins,
       pointerId: event.pointerId,
@@ -515,13 +547,16 @@
     if (!editMode) return;
     event.preventDefault();
     selectedIds = [widget.id];
+    const point = clientToCanvas(event.clientX, event.clientY);
     beginInteraction({
       kind: 'resize',
       id: widget.id,
       itemKind: 'widget',
       handle,
-      startX: event.clientX,
-      startY: event.clientY,
+      startX: point.x,
+      startY: point.y,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
       origin: itemRect(widget),
       pointerId: event.pointerId,
       moved: false,
@@ -594,10 +629,14 @@
       return;
     }
 
-    const dx = event.clientX - active.startX;
-    const dy = event.clientY - active.startY;
-    if (!active.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    const dxClient = event.clientX - active.startClientX;
+    const dyClient = event.clientY - active.startClientY;
+    if (!active.moved && Math.hypot(dxClient, dyClient) < DRAG_THRESHOLD) return;
     interaction = { ...active, moved: true };
+
+    const point = clientToCanvas(event.clientX, event.clientY);
+    const dx = point.x - active.startX;
+    const dy = point.y - active.startY;
 
     if (active.kind === 'move') {
       const exclude = Object.keys(active.origins);
@@ -648,23 +687,22 @@
     previewById = next;
   }
 
-  function onPointerUp(event: PointerEvent) {
+  /** Commit the active move/resize (snap + overlap resolve) or clear marquee. */
+  function commitActiveInteraction() {
     const active = interaction;
-    if (!active || event.pointerId !== active.pointerId) return;
+    if (!active) return;
 
     if (active.kind === 'marquee') {
       interaction = null;
       detachWindowListeners();
-      if (!active.moved) {
-        selectedIds = [];
-        return;
+      if (active.moved) {
+        selectIntersecting({
+          x: Math.min(active.startX, active.currentX),
+          y: Math.min(active.startY, active.currentY),
+          width: Math.abs(active.currentX - active.startX),
+          height: Math.abs(active.currentY - active.startY),
+        });
       }
-      selectIntersecting({
-        x: Math.min(active.startX, active.currentX),
-        y: Math.min(active.startY, active.currentY),
-        width: Math.abs(active.currentX - active.startX),
-        height: Math.abs(active.currentY - active.startY),
-      });
       return;
     }
 
@@ -726,8 +764,37 @@
     }
   }
 
+  function onPointerUp(event: PointerEvent) {
+    const active = interaction;
+    if (!active || event.pointerId !== active.pointerId) return;
+
+    if (active.kind === 'marquee') {
+      interaction = null;
+      detachWindowListeners();
+      if (!active.moved) {
+        selectedIds = [];
+        return;
+      }
+      selectIntersecting({
+        x: Math.min(active.startX, active.currentX),
+        y: Math.min(active.startY, active.currentY),
+        width: Math.abs(active.currentX - active.startX),
+        height: Math.abs(active.currentY - active.startY),
+      });
+      return;
+    }
+
+    commitActiveInteraction();
+  }
+
   $effect(() => {
-    return () => detachWindowListeners();
+    return () => {
+      if (interaction) {
+        commitActiveInteraction();
+      } else {
+        detachWindowListeners();
+      }
+    };
   });
 
   function handleCanvasContextMenu(event: MouseEvent) {

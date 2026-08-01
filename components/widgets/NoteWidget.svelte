@@ -1,5 +1,12 @@
 <script lang="ts">
-  import type { NoteWidget as NoteWidgetModel } from '../../lib/schemas/widget';
+  import {
+    MAX_NOTE_TEXT_LENGTH,
+    type NoteWidget as NoteWidgetModel,
+  } from '../../lib/schemas/widget';
+  import {
+    clampNoteText,
+    clampWidgetTitle,
+  } from '../../lib/widgets/normalizeWidget';
   import { t } from '../../lib/i18n';
 
   interface Props {
@@ -12,33 +19,69 @@
 
   let title = $state('');
   let text = $state('');
+  let syncedId = $state('');
+  let lastPatchedTitle = $state('');
+  let lastPatchedText = $state('');
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   $effect(() => {
-    title = widget.title;
-    text = widget.text;
+    if (widget.id !== syncedId) {
+      syncedId = widget.id;
+      title = widget.title;
+      text = widget.text;
+      lastPatchedTitle = widget.title;
+      lastPatchedText = widget.text;
+      return;
+    }
+    // Only mirror store → local when we are not mid-edit (caught up to last patch).
+    if (title === lastPatchedTitle && text === lastPatchedText) {
+      title = widget.title;
+      text = widget.text;
+      lastPatchedTitle = widget.title;
+      lastPatchedText = widget.text;
+    }
   });
+
+  function flushPatch(nextTitle: string, nextText: string) {
+    if (!onPatch) return;
+    const clampedTitle = clampWidgetTitle(nextTitle);
+    const clampedText = clampNoteText(nextText);
+    lastPatchedTitle = clampedTitle;
+    lastPatchedText = clampedText;
+    onPatch({
+      ...widget,
+      title: clampedTitle,
+      text: clampedText,
+    });
+  }
 
   function schedulePatch(nextTitle: string, nextText: string) {
     if (!onPatch) return;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      onPatch({
-        ...widget,
-        title: nextTitle,
-        text: nextText,
-      });
+      debounceTimer = undefined;
+      flushPatch(nextTitle, nextText);
     }, 300);
   }
 
+  $effect(() => {
+    return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = undefined;
+        flushPatch(title, text);
+      }
+    };
+  });
+
   function onTitleInput(value: string) {
-    title = value;
-    schedulePatch(value, text);
+    title = value.slice(0, 120);
+    schedulePatch(title, text);
   }
 
   function onTextInput(value: string) {
-    text = value;
-    schedulePatch(title, value);
+    text = value.slice(0, MAX_NOTE_TEXT_LENGTH);
+    schedulePatch(title, text);
   }
 
   const bodyFontSize = $derived(
@@ -52,6 +95,7 @@
     placeholder={t('noteTitlePlaceholder')}
     value={title}
     readonly={editMode && !onPatch}
+    maxlength={120}
     oninput={(e) => onTitleInput(e.currentTarget.value)}
   />
   <textarea
@@ -60,6 +104,7 @@
     style:font-size={bodyFontSize}
     placeholder={t('noteTextPlaceholder')}
     value={text}
+    maxlength={MAX_NOTE_TEXT_LENGTH}
     oninput={(e) => onTextInput(e.currentTarget.value)}
   ></textarea>
 </div>

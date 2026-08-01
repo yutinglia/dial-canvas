@@ -57,10 +57,17 @@ type PersistLocalFn = (
 ) => Promise<void>;
 
 let persistLocal: PersistLocalFn | null = null;
+/** Invoked before applying a remote store so UI can discard pending local saves. */
+let beforeRemotePersist: (() => void) | null = null;
 
 /** Wire repository.setStore so sync pull can write local without re-entrancy. */
 export function registerSyncPersist(fn: PersistLocalFn): void {
   persistLocal = fn;
+}
+
+/** Wire App's debounced saver discard before Sync overwrites local storage. */
+export function registerBeforeRemotePersist(fn: (() => void) | null): void {
+  beforeRemotePersist = fn;
 }
 
 export async function getSyncEnabled(): Promise<boolean> {
@@ -120,29 +127,38 @@ function isQuotaError(error: unknown): boolean {
 }
 
 /** Read and parse the remote slim store from storage.sync. */
-export async function readRemoteSyncStore(): Promise<{
-  store: Store;
-  updatedAt: number;
-  droppedDialCount: number;
-  droppedWidgetCount: number;
-  repaired: boolean;
-} | null> {
+export type ReadRemoteSyncResult =
+  | {
+      status: 'ok';
+      store: Store;
+      updatedAt: number;
+      droppedDialCount: number;
+      droppedWidgetCount: number;
+      repaired: boolean;
+    }
+  | { status: 'empty' }
+  | { status: 'incomplete' };
+
+export async function readRemoteSyncStore(): Promise<ReadRemoteSyncResult> {
   const area = (await browser.storage.sync.get(null)) as Record<
     string,
     unknown
   >;
   const assembled = reassembleSyncStoreJson(area);
-  if (!assembled) return null;
+  if (!assembled.ok) {
+    return { status: assembled.reason };
+  }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(assembled.json);
   } catch {
-    return null;
+    return { status: 'incomplete' };
   }
 
   const migrated = migrateStoreWithMeta(parsed);
   return {
+    status: 'ok',
     store: migrated.store,
     updatedAt: assembled.updatedAt,
     droppedDialCount: migrated.droppedDialCount,
@@ -251,7 +267,7 @@ export async function mergeFromSync(): Promise<MergeFromSyncResult> {
   const enabled = await getSyncEnabled();
   if (!enabled) return { action: 'disabled' };
 
-  let remote: Awaited<ReturnType<typeof readRemoteSyncStore>>;
+  let remote: ReadRemoteSyncResult;
   try {
     remote = await readRemoteSyncStore();
   } catch (error) {
@@ -259,7 +275,14 @@ export async function mergeFromSync(): Promise<MergeFromSyncResult> {
     return { action: 'error', error };
   }
 
-  if (!remote) return { action: 'empty' };
+  if (remote.status === 'empty') return { action: 'empty' };
+  if (remote.status === 'incomplete') {
+    await setSyncStatus({ lastError: 'unknown' });
+    return {
+      action: 'error',
+      error: new Error('Incomplete or corrupt Firefox Sync payload'),
+    };
+  }
 
   const localUpdatedAt = await getLocalUpdatedAt();
   if (remote.updatedAt <= localUpdatedAt) {
@@ -274,6 +297,8 @@ export async function mergeFromSync(): Promise<MergeFromSyncResult> {
     return { action: 'error', error: new Error('Sync persist not registered') };
   }
 
+  // Drop pending local flushes before writing remote so they cannot clobber it.
+  beforeRemotePersist?.();
   await persistLocal(remote.store, {
     skipSyncPush: true,
     updatedAt: remote.updatedAt,

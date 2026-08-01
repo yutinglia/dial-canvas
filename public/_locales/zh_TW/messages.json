@@ -332,6 +332,9 @@
   "loadFailed": {
     "message": "無法載入快速撥號資料。"
   },
+  "storeVersionUnsupported": {
+    "message": "此版面是由較新的 Dial Canvas 儲存的。請更新擴充功能以免遺失資料。"
+  },
   "dialRemovedOne": {
     "message": "已移除 1 個無效撥號。"
   },

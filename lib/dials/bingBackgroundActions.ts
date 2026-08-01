@@ -23,6 +23,8 @@ export type BingActionDeps = {
 };
 
 let bingFetchInFlight = false;
+/** When a force refresh arrives during an in-flight fetch, re-run after. */
+let bingFetchForceQueued = false;
 
 function isHostPermissionError(error: string | undefined): boolean {
   return Boolean(error?.toLowerCase().includes('host permission'));
@@ -49,11 +51,18 @@ export async function ensureBingWallpaper(
   const store = deps.getStore();
   if (!store || store.settings.background.type !== 'bing') return;
   const bg = store.settings.background;
+  if (!force && bg.locked) {
+    applyBackground(store.settings);
+    return;
+  }
   if (!force && isBingCacheFresh(bg)) {
     applyBackground(store.settings);
     return;
   }
-  if (bingFetchInFlight) return;
+  if (bingFetchInFlight) {
+    if (force) bingFetchForceQueued = true;
+    return;
+  }
   bingFetchInFlight = true;
   try {
     // Fetch directly from the newtab page. runtime.sendMessage to background
@@ -73,10 +82,24 @@ export async function ensureBingWallpaper(
       return;
     }
     const current = currentStore.settings.background;
+    // User locked or picked another image while the fetch was in flight.
+    if (current.locked) {
+      applyBackground(currentStore.settings);
+      return;
+    }
     if (
       !force &&
       current.cachedUrl === result.url &&
       current.cachedDate === result.date
+    ) {
+      applyBackground(currentStore.settings);
+      return;
+    }
+    // Another selection changed the cache mid-flight — do not overwrite it
+    // unless this call forced a refresh of whatever was current at start.
+    if (
+      force &&
+      (current.cachedUrl !== bg.cachedUrl || current.cachedDate !== bg.cachedDate)
     ) {
       applyBackground(currentStore.settings);
       return;
@@ -108,6 +131,10 @@ export async function ensureBingWallpaper(
     if (fallback) applyBackground(fallback.settings);
   } finally {
     bingFetchInFlight = false;
+    if (bingFetchForceQueued) {
+      bingFetchForceQueued = false;
+      void ensureBingWallpaper(deps, true);
+    }
   }
 }
 

@@ -21,6 +21,7 @@ export type LoadStoreResult = {
   droppedDialCount: number;
   droppedWidgetCount: number;
   repaired: boolean;
+  unsupportedVersion?: boolean;
 };
 
 /** Serialize concurrent storage.local writes. */
@@ -44,7 +45,7 @@ export async function getStore(): Promise<LoadStoreResult> {
     // Prefer a newer Firefox Sync payload over seed dials when sync is on.
     if (await getSyncEnabled()) {
       const remote = await readRemoteSyncStore();
-      if (remote) {
+      if (remote.status === 'ok') {
         await setStore(remote.store, {
           skipSyncPush: true,
           updatedAt: remote.updatedAt,
@@ -72,14 +73,18 @@ export async function getStore(): Promise<LoadStoreResult> {
   }
 
   const migrated = migrateStoreWithMeta(raw);
-  if (migrated.repaired) {
-    await setStore(migrated.store);
+  // Persist repairs/migrations without advancing the Sync LWW clock — otherwise
+  // a Zod drop or version bump can look "newer" than cloud and wipe Sync.
+  // Never write back a coerced future-version payload.
+  if (migrated.repaired && !migrated.unsupportedVersion) {
+    await setStore(migrated.store, { skipSyncPush: true });
   }
   return {
     store: migrated.store,
     droppedDialCount: migrated.droppedDialCount,
     droppedWidgetCount: migrated.droppedWidgetCount,
     repaired: migrated.repaired,
+    unsupportedVersion: migrated.unsupportedVersion,
   };
 }
 
@@ -92,8 +97,10 @@ export async function setStore(
   const plain = JSON.parse(JSON.stringify(store)) as Store;
   await enqueueWrite(async () => {
     await browser.storage.local.set({ [STORAGE_KEYS.store]: plain });
+    // Keep LWW clock + pending push in the same critical section as the write
+    // so a slower concurrent setStore cannot stamp an older payload as newer.
+    await noteLocalWriteForSync(plain, options);
   });
-  await noteLocalWriteForSync(plain, options);
 }
 
 registerSyncPersist(setStore);
@@ -183,5 +190,16 @@ export function createDebouncedSaver(
 
   const hasPending = () => pending !== undefined || inflight > 0;
 
-  return { schedule, flush, saveNow, hasPending };
+  const peekPending = () => pending;
+
+  /** Drop scheduled work without writing (used when Sync/remote wins storage). */
+  const discard = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    pending = undefined;
+  };
+
+  return { schedule, flush, saveNow, hasPending, peekPending, discard };
 }

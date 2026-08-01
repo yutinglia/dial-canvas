@@ -332,6 +332,9 @@
   "loadFailed": {
     "message": "Failed to load speed dial data."
   },
+  "storeVersionUnsupported": {
+    "message": "This layout was saved by a newer Dial Canvas. Update the extension to avoid losing data."
+  },
   "dialRemovedOne": {
     "message": "1 invalid dial was removed."
   },

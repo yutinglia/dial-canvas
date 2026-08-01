@@ -6,6 +6,7 @@
     removeTodoItem,
     toggleTodoItem,
   } from '../../lib/widgets/todo';
+  import { clampWidgetTitle } from '../../lib/widgets/normalizeWidget';
   import { t } from '../../lib/i18n';
 
   interface Props {
@@ -21,7 +22,7 @@
     items: TodoWidgetModel['items'],
     title = widget.title,
   ) {
-    onPatch?.({ ...widget, title, items });
+    onPatch?.({ ...widget, title: clampWidgetTitle(title), items });
   }
 
   function onAdd() {
@@ -44,6 +45,7 @@
     style:font-size={titleFontSize}
     placeholder={t('todoTitlePlaceholder')}
     value={widget.title}
+    maxlength={120}
     oninput={(e) => patchItems(widget.items, e.currentTarget.value)}
   />
 

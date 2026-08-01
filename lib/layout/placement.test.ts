@@ -239,7 +239,7 @@ describe('resolveGroupDrop', () => {
     ).toEqual(origins);
   });
 
-  it('clamps siblings that would leave the canvas', () => {
+  it('reverts when edge-clamp would overlap group members', () => {
     const origins = {
       a: rect(200, 0, 64, 64),
       b: rect(280, 0, 64, 64),
@@ -253,10 +253,7 @@ describe('resolveGroupDrop', () => {
         { gridSize: 16, snapEnabled: false },
         canvas,
       ),
-    ).toEqual({
-      a: rect(240, 0, 64, 64),
-      b: rect(256, 0, 64, 64),
-    });
+    ).toEqual(origins);
   });
 });
 

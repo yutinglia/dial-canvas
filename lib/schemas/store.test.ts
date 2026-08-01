@@ -321,6 +321,65 @@ describe('parseStore', () => {
     expect(getActiveWidgets(result.store)).toEqual([validClock]);
   });
 
+  it('soft-repairs oversized note/todo widgets instead of dropping them', () => {
+    const result = parseStoreWithMeta({
+      version: STORE_VERSION,
+      pages: [
+        {
+          id: 'page-home',
+          name: 'Home',
+          dials: [],
+          widgets: [
+            {
+              id: 'n1',
+              type: 'note',
+              title: 't'.repeat(200),
+              text: 'x'.repeat(5000),
+              showWhenNarrow: false,
+              x: 0,
+              y: 0,
+              width: 160,
+              height: 160,
+            },
+            {
+              id: 'td1',
+              type: 'todo',
+              title: 'Todo',
+              items: [
+                { id: 'i1', text: 'ok', done: false },
+                { id: 'i2', text: 'z'.repeat(500), done: false },
+                { id: 'bad' },
+              ],
+              showWhenNarrow: false,
+              x: 180,
+              y: 0,
+              width: 160,
+              height: 160,
+            },
+          ],
+        },
+      ],
+      activePageId: 'page-home',
+      settings: DEFAULT_SETTINGS,
+    });
+    expect(result.droppedWidgetCount).toBe(0);
+    expect(result.repaired).toBe(true);
+    const widgets = getActiveWidgets(result.store);
+    expect(widgets).toHaveLength(2);
+    const note = widgets.find((w) => w.id === 'n1');
+    expect(note?.type).toBe('note');
+    if (note?.type === 'note') {
+      expect(note.title).toHaveLength(120);
+      expect(note.text).toHaveLength(4000);
+    }
+    const todo = widgets.find((w) => w.id === 'td1');
+    expect(todo?.type).toBe('todo');
+    if (todo?.type === 'todo') {
+      expect(todo.items).toHaveLength(2);
+      expect(todo.items[1]?.text).toHaveLength(200);
+    }
+  });
+
   it('drops dials with disallowed URL schemes during recovery', () => {
     const result = parseStore({
       version: STORE_VERSION,

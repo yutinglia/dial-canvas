@@ -186,21 +186,39 @@ export function parseSyncMeta(raw: unknown): SyncMeta | null {
 
 /**
  * Reassemble slim-store JSON from a storage.sync get() result.
- * Returns null when meta/chunks are missing or incomplete.
+ * Distinguishes true empty sync from incomplete/corrupt chunk sets.
  */
+export type ReassembleSyncResult =
+  | { ok: true; updatedAt: number; json: string }
+  | { ok: false; reason: 'empty' }
+  | { ok: false; reason: 'incomplete' };
+
+function areaHasSyncKeys(area: Record<string, unknown>): boolean {
+  return Object.keys(area).some(
+    (key) => key === SYNC_META_KEY || key.startsWith(SYNC_CHUNK_KEY_PREFIX),
+  );
+}
+
 export function reassembleSyncStoreJson(
   area: Record<string, unknown>,
-): { updatedAt: number; json: string } | null {
+): ReassembleSyncResult {
   const meta = parseSyncMeta(area[SYNC_META_KEY]);
-  if (!meta) return null;
+  if (!meta) {
+    return {
+      ok: false,
+      reason: areaHasSyncKeys(area) ? 'incomplete' : 'empty',
+    };
+  }
 
   const parts: string[] = [];
   for (let i = 0; i < meta.chunkCount; i += 1) {
     const chunk = area[syncChunkKey(i)];
-    if (typeof chunk !== 'string') return null;
+    if (typeof chunk !== 'string') {
+      return { ok: false, reason: 'incomplete' };
+    }
     parts.push(chunk);
   }
-  return { updatedAt: meta.updatedAt, json: parts.join('') };
+  return { ok: true, updatedAt: meta.updatedAt, json: parts.join('') };
 }
 
 /** Keys to remove when shrinking chunk count after a smaller write. */

@@ -1,5 +1,5 @@
 import { alignSnapRect } from './align';
-import { hasOverlap } from './collision';
+import { hasOverlap, intersects } from './collision';
 import { snapRect } from './snap';
 import type { Point, Rect, Size } from './types';
 
@@ -180,13 +180,29 @@ export function resolveGroupDrop(
     );
   }
 
+  const revert = (): Record<string, Rect> => {
+    const reverted: Record<string, Rect> = {};
+    for (const [id, origin] of Object.entries(origins)) {
+      reverted[id] = { ...origin };
+    }
+    return reverted;
+  };
+
   for (const rect of Object.values(translated)) {
     if (hasOverlap(rect, others)) {
-      const reverted: Record<string, Rect> = {};
-      for (const [id, origin] of Object.entries(origins)) {
-        reverted[id] = { ...origin };
+      return revert();
+    }
+  }
+
+  // Independent edge-clamps can collapse siblings onto each other.
+  const memberIds = Object.keys(translated);
+  for (let i = 0; i < memberIds.length; i += 1) {
+    for (let j = i + 1; j < memberIds.length; j += 1) {
+      const a = translated[memberIds[i]!]!;
+      const b = translated[memberIds[j]!]!;
+      if (intersects(a, b)) {
+        return revert();
       }
-      return reverted;
     }
   }
 
