@@ -19,8 +19,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Do not auto-approve: GITHUB_TOKEN reviews do not satisfy required-review
-      # branch protection and create an approve/auto-merge deadlock.
+      # Do not auto-approve: GITHUB_TOKEN reviews do not satisfy required reviews
+      # branch protection and can create an approve/auto-merge deadlock.
       - name: Enable auto-merge for patch/minor
         if: >
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
