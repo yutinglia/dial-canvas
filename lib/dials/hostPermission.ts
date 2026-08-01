@@ -1,4 +1,4 @@
-/** Match patterns declared in wxt.config.ts `host_permissions`. */
+/** Match patterns declared in wxt.config.ts `optional_host_permissions`. */
 export const FETCH_HOST_ORIGINS = ['http://*/*', 'https://*/*'] as const;
 
 /** Whether the extension may fetch arbitrary http(s) pages for titles. */

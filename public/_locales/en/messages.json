@@ -242,6 +242,9 @@
   "holidaysCountriesFailed": {
     "message": "Could not load countries."
   },
+  "holidaysHostPermission": {
+    "message": "Permission needed to load holiday data."
+  },
   "holidaysEmpty": {
     "message": "No upcoming holidays."
   },
@@ -316,6 +319,12 @@
   },
   "weatherGeoFailed": {
     "message": "Could not get your location."
+  },
+  "weatherPermissionNeeded": {
+    "message": "Permission needed to load weather. Open the widget editor to allow access."
+  },
+  "weatherLocationPermission": {
+    "message": "Permission needed to use weather location data."
   },
   "dialCopied": {
     "message": "URL copied."

@@ -7,6 +7,7 @@
     formatWindSpeed,
     type CurrentWeather,
   } from '../../lib/widgets/weather';
+  import { hasWeatherNetworkAccess } from '../../lib/widgets/weatherNetworkAccess';
 
   interface Props {
     widget: WeatherWidgetModel;
@@ -18,6 +19,7 @@
   let weather = $state<CurrentWeather | null>(null);
   let loading = $state(false);
   let error = $state('');
+  let needsPermission = $state(false);
   let fetchSeq = 0;
 
   const DEFAULT_ICON_SIZE = 28;
@@ -38,12 +40,22 @@
     if (!location) {
       weather = null;
       error = '';
+      needsPermission = false;
       loading = false;
       return;
     }
     const seq = ++fetchSeq;
     loading = true;
     error = '';
+    needsPermission = false;
+    const allowed = await hasWeatherNetworkAccess();
+    if (seq !== fetchSeq) return;
+    if (!allowed) {
+      loading = false;
+      weather = null;
+      needsPermission = true;
+      return;
+    }
     const result = await fetchCurrentWeather(location, widget.units);
     if (seq !== fetchSeq) return;
     loading = false;
@@ -77,6 +89,22 @@
 >
   {#if !widget.location}
     <p class="text-sm text-[var(--text-muted)]">{t('weatherSetLocation')}</p>
+    {#if onSetLocation}
+      <button
+        type="button"
+        class="mt-1 rounded-md px-2.5 py-1 text-xs"
+        style:background="var(--accent)"
+        style:color="#0f1216"
+        onclick={(e) => {
+          e.stopPropagation();
+          onSetLocation();
+        }}
+      >
+        {t('weatherSetLocation')}
+      </button>
+    {/if}
+  {:else if needsPermission}
+    <p class="text-sm text-[var(--text-muted)]">{t('weatherPermissionNeeded')}</p>
     {#if onSetLocation}
       <button
         type="button"

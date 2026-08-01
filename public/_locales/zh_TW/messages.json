@@ -242,6 +242,9 @@
   "holidaysCountriesFailed": {
     "message": "無法載入國家／地區。"
   },
+  "holidaysHostPermission": {
+    "message": "需要權限才能載入節日資料。"
+  },
   "holidaysEmpty": {
     "message": "沒有即將到來的假日。"
   },
@@ -316,6 +319,12 @@
   },
   "weatherGeoFailed": {
     "message": "無法取得你的位置。"
+  },
+  "weatherPermissionNeeded": {
+    "message": "需要權限才能載入天氣。請開啟小工具編輯器以允許存取。"
+  },
+  "weatherLocationPermission": {
+    "message": "需要權限才能使用天氣位置資料。"
   },
   "dialCopied": {
     "message": "已複製網址。"

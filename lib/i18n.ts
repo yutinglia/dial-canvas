@@ -136,6 +136,7 @@ const FALLBACKS: Record<string, string> = {
   holidaysLoadingCountries: 'Loading countries…',
   holidaysFailed: 'Could not load holidays.',
   holidaysCountriesFailed: 'Could not load countries.',
+  holidaysHostPermission: 'Permission needed to load holiday data.',
   holidaysEmpty: 'No upcoming holidays.',
   holidaysLimit: 'How many to show',
   wallpaperInfoShowCopyright: 'Show copyright / credit',
@@ -161,6 +162,9 @@ const FALLBACKS: Record<string, string> = {
   weatherSearchFailed: 'City search failed.',
   weatherNoResults: 'No matching cities found.',
   weatherGeoFailed: 'Could not get your location.',
+  weatherPermissionNeeded:
+    'Permission needed to load weather. Open the widget editor to allow access.',
+  weatherLocationPermission: 'Permission needed to use weather location data.',
   dialCopied: 'URL copied.',
   copyFailed: 'Could not copy URL.',
   saveFailed: 'Failed to save. Your latest changes are kept in this tab.',
