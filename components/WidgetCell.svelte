@@ -161,6 +161,10 @@
     tabindex="0"
     onpointerdown={(e) => {
       if ((e.target as HTMLElement).closest('[data-handle]')) return;
+      if ((e.target as HTMLElement).closest('[data-drag-handle]')) {
+        onMoveStart(widget, e);
+        return;
+      }
       if ((e.target as HTMLElement).closest('input, textarea, button, select, a, [data-interactive]')) {
         return;
       }
@@ -181,6 +185,22 @@
     {@render widgetBody()}
 
     <ItemCenterCross />
+
+    <div
+      data-drag-handle
+      class="absolute top-0.5 left-1/2 z-20 flex h-4 w-12 -translate-x-1/2 cursor-grab items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100"
+      class:opacity-100={selected || dragging}
+      role="presentation"
+      onpointerdown={(e) => {
+        e.stopPropagation();
+        onMoveStart(widget, e);
+      }}
+    >
+      <span
+        class="block h-1 w-6 rounded-full bg-[var(--dial-title)] opacity-45"
+        aria-hidden="true"
+      ></span>
+    </div>
 
     <button
       type="button"

@@ -38,11 +38,7 @@
   );
 </script>
 
-<div
-  class="flex h-full min-h-0 w-full flex-col gap-1.5 px-2.5 py-2"
-  onpointerdown={(e) => e.stopPropagation()}
-  role="presentation"
->
+<div class="flex h-full min-h-0 w-full flex-col gap-1.5 px-2.5 py-2">
   <input
     class="w-full bg-transparent text-sm font-medium text-[var(--dial-title)] outline-none placeholder:text-[var(--text-muted)]"
     style:font-size={titleFontSize}

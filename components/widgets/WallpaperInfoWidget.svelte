@@ -24,11 +24,7 @@
   );
 </script>
 
-<div
-  class="flex h-full min-h-0 w-full flex-col justify-center gap-1 px-3 py-2"
-  onpointerdown={(e) => e.stopPropagation()}
-  role="presentation"
->
+<div class="flex h-full min-h-0 w-full flex-col justify-center gap-1 px-3 py-2">
   <div class="text-xs uppercase tracking-wide text-[var(--text-muted)]">
     {t('widgetWallpaperInfo')}
   </div>
