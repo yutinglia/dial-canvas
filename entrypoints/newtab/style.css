@@ -20,9 +20,9 @@
   --grid-line-major: rgba(255, 255, 255, 0.22);
   --grid-line-emphasized: rgba(255, 255, 255, 0.2);
   --grid-line-major-emphasized: rgba(255, 255, 255, 0.32);
-  /* Page center guides (sky) vs dial/widget centers (accent green) */
-  --align-guide-page: rgba(126, 184, 212, 0.55);
-  --align-guide-page-active: rgba(160, 210, 235, 0.95);
+  /* Page center guides (red) vs dial/widget centers (accent green) */
+  --align-guide-page: rgba(220, 100, 100, 0.55);
+  --align-guide-page-active: rgba(240, 120, 120, 0.95);
   --align-guide-item: rgba(107, 143, 113, 0.55);
   --align-guide-item-active: rgba(140, 190, 148, 0.95);
   font-family: 'Segoe UI', 'IBM Plex Sans', 'Source Sans 3', system-ui, sans-serif;
