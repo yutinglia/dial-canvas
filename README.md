@@ -81,6 +81,13 @@ Mozilla must sign the XPI. This repo uses GitHub Actions + [WXT submit](https://
 
 Extension ID (public, in the manifest): `dial-canvas@yutinglia.dev`
 
+Homepage / source: https://github.com/yutinglia/dial-canvas
+
+Before listing, use:
+
+- [PRIVACY.md](PRIVACY.md) — privacy policy (link this URL on the AMO listing)
+- [AMO_REVIEW_NOTES.md](AMO_REVIEW_NOTES.md) — permission justifications for reviewers
+
 ### One-time setup
 
 1. Create / log into an [AMO Developer Hub](https://addons.mozilla.org/developers/) account.

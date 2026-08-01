@@ -422,6 +422,27 @@
   "settingsSectionData": {
     "message": "資料"
   },
+  "settingsSectionAbout": {
+    "message": "關於"
+  },
+  "about": {
+    "message": "關於"
+  },
+  "aboutVersion": {
+    "message": "版本 $1"
+  },
+  "aboutLicenseMit": {
+    "message": "以 MIT 授權條款發佈。"
+  },
+  "aboutHomepage": {
+    "message": "首頁／原始碼"
+  },
+  "aboutPrivacy": {
+    "message": "隱私權政策"
+  },
+  "aboutLicense": {
+    "message": "授權條款"
+  },
   "firefoxSyncEnable": {
     "message": "透過 Firefox 帳號同步"
   },
