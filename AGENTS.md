@@ -17,7 +17,15 @@ npm test           # Vitest (once)
 npm run test:coverage  # Vitest + V8 coverage (80% gate on lib/)
 ```
 
-CI runs `check` + `test:coverage` (fails under 80% lines/functions/branches/statements on `lib/`). AMO publish, temp-load, and Chrome scripts: see README.
+CI runs `check` + `test:coverage`. AMO publish, temp-load, and Chrome scripts: see README.
+
+## Coverage
+
+- **Scope**: production `lib/**/*.ts` only (excludes `*.test.ts`). Components/Svelte are out of scope for the unit-coverage gate.
+- **Gate**: Vitest `@vitest/coverage-v8` fails CI below **80%** on lines, statements, functions, and branches (`vitest.config.ts`).
+- **Local**: `npm run test:coverage` (reports under `coverage/`, gitignored). Use `npm test` for a fast run without the gate.
+- **Tests**: sibling `lib/**/*.test.ts`; prefer behavioral cases for real branches. Do not add filler tests just to scrape past 80%.
+- After logic/schema changes under `lib/`, run `npm run test:coverage` (not only `npm test`) so the gate still passes.
 
 ## Layout
 
@@ -42,6 +50,7 @@ public/_locales/ # en, zh_TW
 - Svelte 5 runes (`$state` / `$derived` / `$effect`); Zod schemas + `z.infer` for persisted models.
 - Validate every `storage.local` read with Zod; store migrations live in `lib/storage/migrate.ts`.
 - Keep `lib/layout` DOM-free and covered by `lib/**/*.test.ts`.
+- Keep `lib/` above the 80% coverage gate; add useful tests with domain changes.
 - Firefox-first; host-permission prompts must run from a user gesture.
 - Optional Sync: LWW + chunk quotas; do not advance the LWW clock on seed.
 - Dial URLs: `http:`, `https:`, and `about:` only.
@@ -65,7 +74,7 @@ public/_locales/ # en, zh_TW
 
 **Do**
 
-- Run `npm test` and `npm run check` after logic or schema changes.
+- Run `npm run check` and `npm run test:coverage` after logic or schema changes under `lib/`.
 - Extend Zod schemas and `migrate.ts` when changing store shape.
 - Split large files instead of growing them further.
 
