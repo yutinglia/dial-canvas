@@ -78,54 +78,38 @@ describe('hasLocationDataPermission', () => {
 });
 
 describe('requestLocationDataPermission', () => {
-  it('skips prompt when unsupported', async () => {
-    vi.spyOn(browser.permissions, 'getAll').mockImplementation(async () => ({
-      origins: [],
-      permissions: [],
-    }));
-    const request = vi.spyOn(browser.permissions, 'request');
-    await expect(requestLocationDataPermission()).resolves.toBe(true);
-    expect(request).not.toHaveBeenCalled();
-  });
-
-  it('skips prompt when already granted', async () => {
-    vi.spyOn(browser.permissions, 'getAll').mockImplementation(async () => ({
-      origins: [],
-      permissions: [],
-      data_collection: [LOCATION_DATA_PERMISSION],
-    }));
-    vi.spyOn(browser.permissions, 'contains').mockImplementation(async () => true);
-    const request = vi.spyOn(browser.permissions, 'request');
-    await expect(requestLocationDataPermission()).resolves.toBe(true);
-    expect(request).not.toHaveBeenCalled();
-  });
-
-  it('requests locationInfo when missing', async () => {
-    vi.spyOn(browser.permissions, 'getAll').mockImplementation(async () => ({
-      origins: [],
-      permissions: [],
-      data_collection: [],
-    }));
-    vi.spyOn(browser.permissions, 'contains').mockImplementation(async () => false);
+  it('calls request immediately without getAll or contains', async () => {
+    const getAll = vi.spyOn(browser.permissions, 'getAll');
+    const contains = vi.spyOn(browser.permissions, 'contains');
     const request = vi
       .spyOn(browser.permissions, 'request')
       .mockImplementation(async () => true);
     await expect(requestLocationDataPermission()).resolves.toBe(true);
+    expect(getAll).not.toHaveBeenCalled();
+    expect(contains).not.toHaveBeenCalled();
     expect(request).toHaveBeenCalledWith({
       data_collection: [LOCATION_DATA_PERMISSION],
     });
   });
 
-  it('returns false when request throws', async () => {
-    vi.spyOn(browser.permissions, 'getAll').mockImplementation(async () => ({
-      origins: [],
-      permissions: [],
-      data_collection: [],
-    }));
-    vi.spyOn(browser.permissions, 'contains').mockImplementation(async () => false);
-    vi.spyOn(browser.permissions, 'request').mockRejectedValue(
-      new Error('denied'),
+  it('returns false when denied', async () => {
+    vi.spyOn(browser.permissions, 'request').mockImplementation(
+      async () => false,
     );
     await expect(requestLocationDataPermission()).resolves.toBe(false);
+  });
+
+  it('returns false on user-gesture errors', async () => {
+    vi.spyOn(browser.permissions, 'request').mockRejectedValue(
+      new Error('permissions.request may only be called from a user input handler'),
+    );
+    await expect(requestLocationDataPermission()).resolves.toBe(false);
+  });
+
+  it('treats unsupported data_collection throws as allowed', async () => {
+    vi.spyOn(browser.permissions, 'request').mockRejectedValue(
+      new Error('Unexpected property: data_collection'),
+    );
+    await expect(requestLocationDataPermission()).resolves.toBe(true);
   });
 });

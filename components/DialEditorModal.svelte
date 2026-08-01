@@ -155,10 +155,10 @@
     }
 
     // Blur cannot prompt; only Fetch title (user gesture) may request access.
-    let allowed = await hasFetchHostPermission();
-    if (!allowed && opts.requestPermission) {
-      allowed = await requestFetchHostPermission();
-    }
+    // When prompting, call request() first — Firefox voids the gesture after await contains().
+    const allowed = opts.requestPermission
+      ? await requestFetchHostPermission()
+      : await hasFetchHostPermission();
     if (!allowed) {
       if (opts.requestPermission) {
         titleStatus = t('fetchTitlePermission');

@@ -91,27 +91,25 @@ describe('listBookmarkCandidates', () => {
 });
 
 describe('requestBookmarksPermission', () => {
-  it('returns true when already granted', async () => {
-    vi.spyOn(browser.permissions, 'contains').mockImplementation(
-      async () => true,
-    );
-    const request = vi.spyOn(browser.permissions, 'request');
+  it('calls request immediately without contains', async () => {
+    const contains = vi.spyOn(browser.permissions, 'contains');
+    const request = vi
+      .spyOn(browser.permissions, 'request')
+      .mockImplementation(async () => true);
     await expect(requestBookmarksPermission()).resolves.toBe(true);
-    expect(request).not.toHaveBeenCalled();
+    expect(contains).not.toHaveBeenCalled();
+    expect(request).toHaveBeenCalledWith({ permissions: ['bookmarks'] });
   });
 
-  it('requests permission when missing', async () => {
-    vi.spyOn(browser.permissions, 'contains').mockImplementation(
+  it('returns false when denied', async () => {
+    vi.spyOn(browser.permissions, 'request').mockImplementation(
       async () => false,
     );
-    vi.spyOn(browser.permissions, 'request').mockImplementation(
-      async () => true,
-    );
-    await expect(requestBookmarksPermission()).resolves.toBe(true);
+    await expect(requestBookmarksPermission()).resolves.toBe(false);
   });
 
   it('returns false when the permissions API throws', async () => {
-    vi.spyOn(browser.permissions, 'contains').mockRejectedValue(
+    vi.spyOn(browser.permissions, 'request').mockRejectedValue(
       new Error('no api'),
     );
     await expect(requestBookmarksPermission()).resolves.toBe(false);

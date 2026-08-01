@@ -15,11 +15,13 @@ export async function hasFetchHostPermission(): Promise<boolean> {
 /**
  * Prompt for host access. Must be called from a user gesture
  * (e.g. Fetch title button click) — blur handlers cannot prompt.
+ *
+ * Call request() immediately: Firefox voids the user-gesture across any
+ * await (including permissions.contains) before this API.
+ * Already-granted origins resolve true with no prompt.
  */
 export async function requestFetchHostPermission(): Promise<boolean> {
   try {
-    const already = await hasFetchHostPermission();
-    if (already) return true;
     return await browser.permissions.request({
       origins: [...FETCH_HOST_ORIGINS],
     });

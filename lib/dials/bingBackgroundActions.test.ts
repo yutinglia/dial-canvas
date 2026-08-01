@@ -91,11 +91,20 @@ afterEach(() => {
 
 describe('ensureHostPermissionForBing', () => {
   it('prompts and toasts when permission is denied', async () => {
-    hasFetchHostPermission.mockResolvedValue(false);
     requestFetchHostPermission.mockResolvedValue(false);
     const deps = makeDeps(bingStore());
     await expect(ensureHostPermissionForBing(deps)).resolves.toBe(false);
+    expect(requestFetchHostPermission).toHaveBeenCalledOnce();
+    expect(hasFetchHostPermission).not.toHaveBeenCalled();
     expect(deps.showToast).toHaveBeenCalledWith('bingHostPermission');
+  });
+
+  it('returns true when request grants access', async () => {
+    requestFetchHostPermission.mockResolvedValue(true);
+    const deps = makeDeps(bingStore());
+    await expect(ensureHostPermissionForBing(deps)).resolves.toBe(true);
+    expect(hasFetchHostPermission).not.toHaveBeenCalled();
+    expect(deps.showToast).not.toHaveBeenCalled();
   });
 });
 
@@ -275,6 +284,7 @@ describe('loadBingWallpaperList', () => {
     });
 
     hasFetchHostPermission.mockResolvedValue(true);
+    requestFetchHostPermission.mockResolvedValue(true);
     requestBingWallpaperList.mockResolvedValue({
       ok: true,
       items: [],

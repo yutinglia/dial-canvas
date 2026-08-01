@@ -32,10 +32,13 @@ function walkBookmarks(
   }
 }
 
+/**
+ * Prompt for bookmarks access. Must run from a user gesture.
+ * Call request() immediately — Firefox voids the gesture across awaits
+ * (e.g. permissions.contains) before this API.
+ */
 export async function requestBookmarksPermission(): Promise<boolean> {
   try {
-    const has = await browser.permissions.contains({ permissions: ['bookmarks'] });
-    if (has) return true;
     return await browser.permissions.request({ permissions: ['bookmarks'] });
   } catch {
     return false;
