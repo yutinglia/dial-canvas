@@ -28,6 +28,7 @@ const validDial = {
   id: 'd1',
   title: 'Example',
   url: 'https://example.com/',
+  showWhenNarrow: false,
   x: 0,
   y: 0,
   width: 64,

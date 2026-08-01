@@ -552,7 +552,7 @@
 
         <div class="flex flex-col gap-1">
           <div class="flex items-center justify-between gap-2">
-            <label class="text-sm text-[var(--text-muted)]">
+            <label class="text-sm text-[var(--text-muted)]" for="widget-font-size">
               {t('fontSize')}
               <span class="ml-1 text-[var(--text-muted)]">
                 {effectiveFontSize}px{fontSizeOverride == null
@@ -574,6 +574,7 @@
             {/if}
           </div>
           <input
+            id="widget-font-size"
             type="range"
             min="12"
             max="64"
@@ -590,7 +591,7 @@
         {#if widget.type === 'weather'}
           <div class="flex flex-col gap-1">
             <div class="flex items-center justify-between gap-2">
-              <label class="text-sm text-[var(--text-muted)]">
+              <label class="text-sm text-[var(--text-muted)]" for="widget-icon-size">
                 {t('iconSize')}
                 <span class="ml-1 text-[var(--text-muted)]">
                   {effectiveIconSize}px{iconSizeOverride == null
@@ -612,6 +613,7 @@
               {/if}
             </div>
             <input
+              id="widget-icon-size"
               type="range"
               min="16"
               max="96"

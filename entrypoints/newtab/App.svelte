@@ -829,6 +829,7 @@
 
     const base = {
       id: createId(),
+      showWhenNarrow: false,
       ...slot,
     };
 

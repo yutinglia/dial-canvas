@@ -83,6 +83,7 @@ export function dialsFromBookmarks(
       id: createId(),
       title: bookmark.title.slice(0, 120) || bookmark.url,
       url: bookmark.url,
+      showWhenNarrow: false,
       ...slot,
     };
     dials.push(dial);

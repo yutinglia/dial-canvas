@@ -1,3 +1,4 @@
+<script lang="ts"></script>
 <!-- Center crosshair for aiming dials/widgets in edit mode. -->
 <div class="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
   <div

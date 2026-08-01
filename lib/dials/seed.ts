@@ -11,6 +11,7 @@ export function createSeedDials(gridSize = 20): Dial[] {
     {
       title: 'Firefox',
       url: 'https://www.mozilla.org/firefox/',
+      showWhenNarrow: false,
       x: gap,
       y: gap,
       width: w,
@@ -19,6 +20,7 @@ export function createSeedDials(gridSize = 20): Dial[] {
     {
       title: 'MDN',
       url: 'https://developer.mozilla.org/',
+      showWhenNarrow: false,
       x: gap + w + gap,
       y: gap,
       width: w,
@@ -27,6 +29,7 @@ export function createSeedDials(gridSize = 20): Dial[] {
     {
       title: 'GitHub',
       url: 'https://github.com/',
+      showWhenNarrow: false,
       x: gap + (w + gap) * 2,
       y: gap,
       width: w,
@@ -35,6 +38,7 @@ export function createSeedDials(gridSize = 20): Dial[] {
     {
       title: 'Wikipedia',
       url: 'https://www.wikipedia.org/',
+      showWhenNarrow: false,
       x: gap,
       y: gap + h + gap,
       width: w,
