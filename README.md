@@ -146,4 +146,4 @@ lib/
 
 ## License
 
-TBD
+[MIT](LICENSE)
