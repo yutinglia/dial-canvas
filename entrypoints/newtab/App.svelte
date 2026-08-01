@@ -11,31 +11,19 @@
   import WidgetEditorModal from '../../components/WidgetEditorModal.svelte';
   import DialSearchOverlay from '../../components/DialSearchOverlay.svelte';
   import PageTabs from '../../components/PageTabs.svelte';
-  import { createId } from '../../lib/id';
   import {
-    defaultCalendarWidgetSize,
-    defaultClockWidgetSize,
-    defaultHolidaysWidgetSize,
-    defaultNoteWidgetSize,
-    defaultTodoWidgetSize,
-    defaultWallpaperInfoWidgetSize,
-    defaultWeatherWidgetSize,
     findFirstFreeSlot,
     findNearestFreeSlot,
-    type Rect,
+    occupiedRects,
     type Size,
   } from '../../lib/layout';
   import {
     isAllowedDialUrl,
-    normalizeDialUrl,
-    normalizeFaviconUrl,
     type Dial,
   } from '../../lib/schemas/dial';
-  import type { Background, Settings } from '../../lib/schemas/settings';
+  import type { Settings } from '../../lib/schemas/settings';
   import type { Widget, WidgetType } from '../../lib/schemas/widget';
   import {
-    createEmptyStore,
-    createPage,
     getActiveDials,
     getActivePage,
     getActiveWidgets,
@@ -48,7 +36,7 @@
     getStore,
   } from '../../lib/storage/repository';
   import { STORAGE_KEYS } from '../../lib/storage/keys';
-  import { migrateStore, migrateStoreWithMeta } from '../../lib/storage/migrate';
+  import { migrateStore } from '../../lib/storage/migrate';
   import {
     flushPendingSyncPush,
     getSyncEnabled,
@@ -58,23 +46,47 @@
     setSyncEnabled,
     type SyncStatus,
   } from '../../lib/storage/firefoxSync';
-  import { createSeedDials } from '../../lib/dials/seed';
   import {
-    dialsFromBookmarks,
     listBookmarkCandidates,
     requestBookmarksPermission,
   } from '../../lib/dials/bookmarks';
-  import {
-    requestBingWallpaper,
-    requestBingWallpaperList,
-    type BingWallpaperItem,
-    type BingWallpaperListResult,
-    utcDateString,
+  import type {
+    BingWallpaperItem,
+    BingWallpaperListResult,
   } from '../../lib/dials/bingWallpaper';
   import {
-    hasFetchHostPermission,
-    requestFetchHostPermission,
-  } from '../../lib/dials/hostPermission';
+    applyBackground,
+    canvasBackgroundColor as resolveCanvasBackgroundColor,
+  } from '../../lib/dials/canvasBackground';
+  import {
+    ensureBingWallpaper,
+    loadBingWallpaperList,
+    refreshBingWallpaper,
+    selectBingBackground,
+    selectBingWallpaperItem,
+    type BingActionDeps,
+  } from '../../lib/dials/bingBackgroundActions';
+  import {
+    createDialFromEditor,
+    mergeDialFromEditor,
+    parseDialEditorValues,
+    type DialEditorValues,
+  } from '../../lib/dials/fromEditor';
+  import { createWidget, defaultSizeForType } from '../../lib/widgets/createWidget';
+  import { clampMenuPosition } from '../../lib/ui/contextMenuPosition';
+  import {
+    addPage as addPageAction,
+    deletePage as deletePageAction,
+    renamePage as renamePageAction,
+    selectPage as selectPageAction,
+  } from '../../lib/newtab/pageActions';
+  import {
+    createResetStore,
+    downloadStoreJson,
+    formatImportSuccessMessage,
+    mergeBookmarksIntoStore,
+    parseStoreImportFile,
+  } from '../../lib/storage/storeIo';
   import { setLocalePreference, t } from '../../lib/i18n';
 
   const EDIT_HINT_KEY = 'msd-edit-hint-seen';
@@ -112,7 +124,6 @@
     canvasY: number;
   } | null>(null);
   let pendingPlacement = $state<{ x: number; y: number } | null>(null);
-  let bingFetchInFlight = false;
 
   const activeDials = $derived(store ? getActiveDials(store) : []);
   const activeWidgets = $derived(store ? getActiveWidgets(store) : []);
@@ -124,26 +135,6 @@
       height: store?.settings.canvasMinHeight ?? 800,
     };
   });
-
-  function occupiedRects(
-    dials: Dial[] = activeDials,
-    widgets: Widget[] = activeWidgets,
-  ): Rect[] {
-    return [
-      ...dials.map((d) => ({
-        x: d.x,
-        y: d.y,
-        width: d.width,
-        height: d.height,
-      })),
-      ...widgets.map((w) => ({
-        x: w.x,
-        y: w.y,
-        width: w.width,
-        height: w.height,
-      })),
-    ];
-  }
 
   function notifyDroppedItems(dials: number, widgets: number) {
     if (dials > 0) {
@@ -188,144 +179,19 @@
     return JSON.stringify(a) === JSON.stringify(b);
   }
 
-  function isBingCacheFresh(
-    bg: Extract<Background, { type: 'bing' }>,
-  ): boolean {
-    if (bg.locked && bg.cachedUrl) return true;
-    return Boolean(bg.cachedUrl && bg.cachedDate === utcDateString());
-  }
-
-  function applyImageBackground(
-    imageUrl: string | undefined,
-    fit: string,
-    opacity: number,
-  ) {
-    const root = document.documentElement;
-    root.style.setProperty('--canvas-bg', '#1a1d23');
-    root.style.setProperty('--canvas-bg-opacity', String(opacity));
-    if (!imageUrl) {
-      root.style.setProperty('--canvas-bg-image', 'none');
-      root.style.setProperty('--canvas-bg-size', 'auto');
-      root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
-      return;
-    }
-    root.style.setProperty(
-      '--canvas-bg-image',
-      `url("${imageUrl.replace(/"/g, '\\"')}")`,
-    );
-    if (fit === 'tile') {
-      root.style.setProperty('--canvas-bg-size', 'auto');
-      root.style.setProperty('--canvas-bg-repeat', 'repeat');
-    } else if (fit === 'contain') {
-      root.style.setProperty('--canvas-bg-size', 'contain');
-      root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
-    } else {
-      root.style.setProperty('--canvas-bg-size', 'cover');
-      root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
-    }
-  }
-
-  function applyBackground(settings: Settings) {
-    const root = document.documentElement;
-    const bg = settings.background;
-    if (bg.type === 'color') {
-      root.style.setProperty('--canvas-bg', bg.value);
-      root.style.setProperty('--canvas-bg-image', 'none');
-      root.style.setProperty('--canvas-bg-size', 'auto');
-      root.style.setProperty('--canvas-bg-repeat', 'no-repeat');
-      root.style.setProperty('--canvas-bg-opacity', '1');
-      return;
-    }
-    if (bg.type === 'bing') {
-      applyImageBackground(bg.cachedUrl, bg.fit, bg.opacity);
-      return;
-    }
-    applyImageBackground(bg.value, bg.fit, bg.opacity);
-  }
-
-  async function ensureHostPermissionForBing(): Promise<boolean> {
-    let allowed = await hasFetchHostPermission();
-    if (!allowed) {
-      allowed = await requestFetchHostPermission();
-    }
-    if (!allowed) {
-      showToast(t('bingHostPermission'));
-      return false;
-    }
-    return true;
-  }
-
-  function isHostPermissionError(error: string | undefined): boolean {
-    return Boolean(error?.toLowerCase().includes('host permission'));
-  }
-
-  async function ensureBingWallpaper(force = false) {
-    if (!store || store.settings.background.type !== 'bing') return;
-    const bg = store.settings.background;
-    if (!force && isBingCacheFresh(bg)) {
-      applyBackground(store.settings);
-      return;
-    }
-    if (bingFetchInFlight) return;
-    bingFetchInFlight = true;
-    try {
-      // Fetch directly from the newtab page. runtime.sendMessage to background
-      // was returning undefined for Bing list/daily requests in Firefox.
-      const result = await requestBingWallpaper();
-      if (!store || store.settings.background.type !== 'bing') return;
-      if (!result?.ok) {
-        showToast(
-          isHostPermissionError(result?.error)
-            ? t('bingHostPermission')
-            : t('bingFetchFailed'),
-        );
-        applyBackground(store.settings);
-        return;
-      }
-      const current = store.settings.background;
-      if (
-        !force &&
-        current.cachedUrl === result.url &&
-        current.cachedDate === result.date
-      ) {
-        applyBackground(store.settings);
-        return;
-      }
-      await persist(
-        {
-          ...store,
-          settings: {
-            ...store.settings,
-            background: {
-              type: 'bing',
-              fit: current.fit,
-              opacity: current.opacity,
-              cachedUrl: result.url,
-              cachedDate: result.date,
-              locked: false,
-              ...(result.title ? { cachedTitle: result.title } : {}),
-              ...(result.copyright
-                ? { cachedCopyright: result.copyright }
-                : {}),
-            },
-          },
-        },
-        true,
-      );
-    } catch {
-      showToast(t('bingFetchFailed'));
-      if (store) applyBackground(store.settings);
-    } finally {
-      bingFetchInFlight = false;
-    }
-  }
+  const bingDeps = (): BingActionDeps => ({
+    getStore: () => store,
+    persist,
+    showToast,
+    t,
+  });
 
   async function applyRemoteStore(next: Store) {
     setLocalePreference(next.settings.locale);
     store = next;
     applyBackground(next.settings);
     if (next.settings.background.type === 'bing') {
-      void ensureBingWallpaper(false);
+      void ensureBingWallpaper(bingDeps(), false);
     }
   }
 
@@ -399,7 +265,7 @@
         store = loaded.store;
         applyBackground(loaded.store.settings);
         if (loaded.store.settings.background.type === 'bing') {
-          void ensureBingWallpaper(false);
+          void ensureBingWallpaper(bingDeps(), false);
         }
         notifyDroppedItems(loaded.droppedDialCount, loaded.droppedWidgetCount);
 
@@ -601,127 +467,28 @@
       // new-tab pages unloaded before the timer/flush ran.
       await persist(next, opts?.immediate ?? true);
       if (next.settings.background.type === 'bing') {
-        void ensureBingWallpaper(false);
+        void ensureBingWallpaper(bingDeps(), false);
       }
     })();
   }
 
   async function onSelectBing(): Promise<boolean> {
-    if (!store) return false;
-    if (!(await ensureHostPermissionForBing())) return false;
-
-    const existing =
-      store.settings.background.type === 'bing'
-        ? store.settings.background
-        : null;
-    const imageBg =
-      store.settings.background.type === 'image'
-        ? store.settings.background
-        : null;
-    const fit = existing?.fit ?? imageBg?.fit ?? 'cover';
-    const opacity = existing?.opacity ?? imageBg?.opacity ?? 1;
-    const next: Store = {
-      ...store,
-      settings: {
-        ...store.settings,
-        background: {
-          type: 'bing',
-          fit,
-          opacity,
-          locked: existing?.locked ?? false,
-          ...(existing?.cachedUrl
-            ? {
-                cachedUrl: existing.cachedUrl,
-                cachedDate: existing.cachedDate,
-                ...(existing.cachedTitle
-                  ? { cachedTitle: existing.cachedTitle }
-                  : {}),
-                ...(existing.cachedCopyright
-                  ? { cachedCopyright: existing.cachedCopyright }
-                  : {}),
-              }
-            : {}),
-        },
-      },
-    };
-    await persist(next, true);
-    void ensureBingWallpaper(false);
-    return true;
+    return selectBingBackground(bingDeps());
   }
 
   async function onLoadBingWallpaperList(): Promise<BingWallpaperListResult> {
-    if (!(await ensureHostPermissionForBing())) {
-      return { ok: false, error: 'Host permission not granted.' };
-    }
-    try {
-      return await requestBingWallpaperList();
-    } catch (err) {
-      const detail =
-        err instanceof Error && err.message
-          ? err.message
-          : 'Failed to fetch Bing wallpaper list.';
-      return { ok: false, error: detail };
-    }
+    return loadBingWallpaperList(bingDeps());
   }
 
   async function onSelectBingWallpaper(
     item: BingWallpaperItem,
     options: { locked: boolean },
   ) {
-    if (!store) return;
-    if (store.settings.background.type !== 'bing') return;
-    const current = store.settings.background;
-    const cachedDate = options.locked ? item.date : utcDateString();
-    if (
-      current.cachedUrl === item.url &&
-      current.cachedDate === cachedDate &&
-      current.locked === options.locked
-    ) {
-      applyBackground(store.settings);
-      return;
-    }
-    await persist(
-      {
-        ...store,
-        settings: {
-          ...store.settings,
-          background: {
-            type: 'bing',
-            fit: current.fit,
-            opacity: current.opacity,
-            cachedUrl: item.url,
-            cachedDate,
-            locked: options.locked,
-            ...(item.title ? { cachedTitle: item.title } : {}),
-            ...(item.copyright ? { cachedCopyright: item.copyright } : {}),
-          },
-        },
-      },
-      true,
-    );
+    await selectBingWallpaperItem(bingDeps(), item, options);
   }
 
   async function onRefreshBingWallpaper() {
-    if (!(await ensureHostPermissionForBing())) return;
-    if (store && store.settings.background.type === 'bing') {
-      const current = store.settings.background;
-      if (current.locked) {
-        await persist(
-          {
-            ...store,
-            settings: {
-              ...store.settings,
-              background: {
-                ...current,
-                locked: false,
-              },
-            },
-          },
-          true,
-        );
-      }
-    }
-    void ensureBingWallpaper(true);
+    await refreshBingWallpaper(bingDeps());
   }
 
   function closeSettings() {
@@ -798,17 +565,7 @@
     widgetPickerOpen = false;
     const dials = getActiveDials(store);
     const widgets = getActiveWidgets(store);
-    const grid = store.settings.gridSize;
-    const sizeByType: Record<WidgetType, { width: number; height: number }> = {
-      clock: defaultClockWidgetSize(grid),
-      weather: defaultWeatherWidgetSize(grid),
-      note: defaultNoteWidgetSize(grid),
-      todo: defaultTodoWidgetSize(grid),
-      calendar: defaultCalendarWidgetSize(grid),
-      holidays: defaultHolidaysWidgetSize(grid),
-      wallpaperInfo: defaultWallpaperInfoWidgetSize(grid),
-    };
-    const size = sizeByType[type];
+    const size = defaultSizeForType(type, store.settings.gridSize);
     const occupied = occupiedRects(dials, widgets);
     const preferred = pendingPlacement;
     pendingPlacement = null;
@@ -827,69 +584,7 @@
           size,
         );
 
-    const base = {
-      id: createId(),
-      showWhenNarrow: false,
-      ...slot,
-    };
-
-    let widget: Widget;
-    switch (type) {
-      case 'clock':
-        widget = {
-          ...base,
-          type: 'clock',
-          format: '24h',
-          showSeconds: false,
-          showDate: true,
-        };
-        break;
-      case 'weather':
-        widget = {
-          ...base,
-          type: 'weather',
-          units: 'metric',
-        };
-        break;
-      case 'note':
-        widget = {
-          ...base,
-          type: 'note',
-          title: '',
-          text: '',
-        };
-        break;
-      case 'todo':
-        widget = {
-          ...base,
-          type: 'todo',
-          title: '',
-          items: [],
-        };
-        break;
-      case 'calendar':
-        widget = {
-          ...base,
-          type: 'calendar',
-          weekStartsOn: 'monday',
-        };
-        break;
-      case 'holidays':
-        widget = {
-          ...base,
-          type: 'holidays',
-          limit: 8,
-        };
-        break;
-      case 'wallpaperInfo':
-        widget = {
-          ...base,
-          type: 'wallpaperInfo',
-          showCopyright: true,
-        };
-        break;
-    }
-
+    const widget = createWidget(type, slot);
     await persist(withActiveWidgets(store, [...widgets, widget]), true);
     if (type === 'weather' || type === 'holidays') {
       openEditWidget(widget);
@@ -934,16 +629,13 @@
     event.stopPropagation();
     contextMenu = null;
     canvasContextMenu = null;
-    const pad = 8;
-    const menuW = 160;
-    const menuH = editMode ? 100 : 50;
-    const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
-    const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
-    widgetContextMenu = {
-      widget,
-      x: Math.max(pad, x),
-      y: Math.max(pad, y),
-    };
+    const { x, y } = clampMenuPosition(
+      event.clientX,
+      event.clientY,
+      160,
+      editMode ? 100 : 50,
+    );
+    widgetContextMenu = { widget, x, y };
   }
 
   function onDialContextMenu(dial: Dial, event: MouseEvent) {
@@ -951,12 +643,13 @@
     event.stopPropagation();
     widgetContextMenu = null;
     canvasContextMenu = null;
-    const pad = 8;
-    const menuW = 160;
-    const menuH = editMode ? 160 : 80;
-    const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
-    const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
-    contextMenu = { dial, x: Math.max(pad, x), y: Math.max(pad, y) };
+    const { x, y } = clampMenuPosition(
+      event.clientX,
+      event.clientY,
+      160,
+      editMode ? 160 : 80,
+    );
+    contextMenu = { dial, x, y };
   }
 
   function onCanvasContextMenu(
@@ -966,68 +659,31 @@
     event.preventDefault();
     contextMenu = null;
     widgetContextMenu = null;
-    const pad = 8;
-    const menuW = 160;
-    const menuH = 200;
-    const x = Math.min(event.clientX, window.innerWidth - menuW - pad);
-    const y = Math.min(event.clientY, window.innerHeight - menuH - pad);
+    const { x, y } = clampMenuPosition(event.clientX, event.clientY, 160, 200);
     canvasContextMenu = {
-      x: Math.max(pad, x),
-      y: Math.max(pad, y),
+      x,
+      y,
       canvasX: point.x,
       canvasY: point.y,
     };
   }
 
-  async function saveDial(values: {
-    title: string;
-    url: string;
-    faviconUrl?: string;
-    iconSize?: number;
-    fontSize?: number;
-    backgroundColor?: string;
-    backgroundOpacity?: number;
-    showWhenNarrow?: boolean;
-    narrowOrder?: number;
-  }) {
+  async function saveDial(values: DialEditorValues) {
     if (!store) return;
 
-    const url = normalizeDialUrl(values.url);
-    if (!url || !isAllowedDialUrl(url)) {
+    const parsed = parseDialEditorValues(values);
+    if (!parsed.ok) {
       showToast(t('invalidDialUrl'));
       return;
     }
-    const faviconUrl = normalizeFaviconUrl(values.faviconUrl);
     const dials = getActiveDials(store);
 
     if (editingDial) {
-      const nextDials = dials.map((d) => {
-        if (d.id !== editingDial!.id) return d;
-        const next: Dial = {
-          ...d,
-          title: values.title,
-          url,
-          faviconUrl,
-          showWhenNarrow: values.showWhenNarrow ?? false,
-        };
-        if (values.iconSize !== undefined) next.iconSize = values.iconSize;
-        else delete next.iconSize;
-        if (values.fontSize !== undefined) next.fontSize = values.fontSize;
-        else delete next.fontSize;
-        if (values.backgroundColor !== undefined) {
-          next.backgroundColor = values.backgroundColor;
-        } else {
-          delete next.backgroundColor;
-        }
-        if (values.backgroundOpacity !== undefined) {
-          next.backgroundOpacity = values.backgroundOpacity;
-        } else {
-          delete next.backgroundOpacity;
-        }
-        if (values.narrowOrder !== undefined) next.narrowOrder = values.narrowOrder;
-        else delete next.narrowOrder;
-        return next;
-      });
+      const nextDials = dials.map((d) =>
+        d.id === editingDial!.id
+          ? mergeDialFromEditor(d, values, parsed.url, parsed.faviconUrl)
+          : d,
+      );
       await persist(withActiveDials(store, nextDials), true);
     } else {
       const occupied = occupiedRects(dials, getActiveWidgets(store));
@@ -1045,29 +701,12 @@
             store.settings.gridSize,
             canvasSize,
           );
-      const dial: Dial = {
-        id: createId(),
-        title: values.title,
-        url,
-        faviconUrl,
-        showWhenNarrow: values.showWhenNarrow ?? false,
-        ...(values.iconSize !== undefined
-          ? { iconSize: values.iconSize }
-          : {}),
-        ...(values.fontSize !== undefined
-          ? { fontSize: values.fontSize }
-          : {}),
-        ...(values.backgroundColor !== undefined
-          ? { backgroundColor: values.backgroundColor }
-          : {}),
-        ...(values.backgroundOpacity !== undefined
-          ? { backgroundOpacity: values.backgroundOpacity }
-          : {}),
-        ...(values.narrowOrder !== undefined
-          ? { narrowOrder: values.narrowOrder }
-          : {}),
-        ...slot,
-      };
+      const dial = createDialFromEditor(
+        values,
+        parsed.url,
+        parsed.faviconUrl,
+        slot,
+      );
       await persist(withActiveDials(store, [...dials, dial]), true);
     }
     closeEditor();
@@ -1102,61 +741,37 @@
   }
 
   function selectPage(pageId: string) {
-    if (!store || pageId === store.activePageId) return;
-    void persist({ ...store, activePageId: pageId }, true);
+    if (!store) return;
+    const next = selectPageAction(store, pageId);
+    if (next) void persist(next, true);
   }
 
   function addPage() {
     if (!store) return;
-    const page = createPage([], `Page ${store.pages.length + 1}`, createId());
-    void persist(
-      {
-        ...store,
-        pages: [...store.pages, page],
-        activePageId: page.id,
-      },
-      true,
-    );
+    void persist(addPageAction(store), true);
   }
 
   function renamePage(pageId: string) {
     if (!store) return;
     const page = store.pages.find((p) => p.id === pageId);
     if (!page) return;
-    const name = prompt(t('renamePage'), page.name)?.trim();
-    if (!name) return;
-    void persist(
-      {
-        ...store,
-        pages: store.pages.map((p) =>
-          p.id === pageId ? { ...p, name } : p,
-        ),
-      },
-      true,
-    );
+    const name = prompt(t('renamePage'), page.name);
+    if (name == null) return;
+    const next = renamePageAction(store, pageId, name);
+    if (next) void persist(next, true);
   }
 
   function deletePage(pageId: string) {
-    if (!store || store.pages.length <= 1) return;
+    if (!store) return;
     if (!confirm(t('confirmDeletePage'))) return;
-    const pages = store.pages.filter((p) => p.id !== pageId);
-    const activePageId =
-      store.activePageId === pageId ? pages[0]!.id : store.activePageId;
-    void persist({ ...store, pages, activePageId }, true);
+    const next = deletePageAction(store, pageId);
+    if (next) void persist(next, true);
   }
 
   function exportStore() {
     if (!store) return;
     try {
-      const blob = new Blob([JSON.stringify(store, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `my-speed-dial-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadStoreJson(store);
     } catch {
       showToast(t('exportFailed'));
     }
@@ -1164,31 +779,15 @@
 
   async function importStoreFile(file: File) {
     try {
-      const text = await file.text();
-      const raw = JSON.parse(text) as unknown;
-      const migrated = migrateStoreWithMeta(raw);
+      const migrated = await parseStoreImportFile(file);
       // Force persist even if parse reports unrepaired (import always writes).
       await persist(migrated.store, true);
       showToast(
-        migrated.droppedDialCount > 0 || migrated.droppedWidgetCount > 0
-          ? `${t('importSuccess')} ${[
-              migrated.droppedDialCount > 0
-                ? migrated.droppedDialCount === 1
-                  ? t('dialRemovedOne')
-                  : t('dialRemovedMany', String(migrated.droppedDialCount))
-                : '',
-              migrated.droppedWidgetCount > 0
-                ? migrated.droppedWidgetCount === 1
-                  ? t('widgetRemovedOne')
-                  : t(
-                      'widgetRemovedMany',
-                      String(migrated.droppedWidgetCount),
-                    )
-                : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}`
-          : t('importSuccess'),
+        formatImportSuccessMessage(
+          migrated.droppedDialCount,
+          migrated.droppedWidgetCount,
+          t,
+        ),
       );
       settingsOpen = false;
     } catch {
@@ -1198,8 +797,7 @@
 
   async function resetStore() {
     if (!confirm(t('confirmReset'))) return;
-    const next = createEmptyStore(createSeedDials());
-    await persist(next, true);
+    await persist(createResetStore(), true);
     showToast(t('resetDone'));
     settingsOpen = false;
   }
@@ -1213,33 +811,13 @@
     }
     try {
       const bookmarks = await listBookmarkCandidates();
-      if (bookmarks.length === 0) {
+      const result = mergeBookmarksIntoStore(store, bookmarks, canvasSize);
+      if (!result.ok) {
         showToast(t('bookmarksNone'));
         return;
       }
-      const existing = getActiveDials(store);
-      const existingUrls = new Set(existing.map((d) => d.url));
-      const fresh = bookmarks.filter((b) => !existingUrls.has(b.url));
-      if (fresh.length === 0) {
-        showToast(t('bookmarksNone'));
-        return;
-      }
-      const nextDials = dialsFromBookmarks(
-        fresh,
-        existing,
-        store.settings.gridSize,
-        canvasSize,
-        40,
-        getActiveWidgets(store).map((w) => ({
-          x: w.x,
-          y: w.y,
-          width: w.width,
-          height: w.height,
-        })),
-      );
-      const added = nextDials.length - existing.length;
-      await persist(withActiveDials(store, nextDials), true);
-      showToast(t('bookmarksImported', String(added)));
+      await persist(result.store, true);
+      showToast(t('bookmarksImported', String(result.added)));
       settingsOpen = false;
     } catch {
       showToast(t('bookmarksPermission'));
@@ -1247,10 +825,7 @@
   }
 
   function canvasBackgroundColor(): string {
-    if (!store) return 'var(--canvas-bg)';
-    const bg = store.settings.background;
-    if (bg.type === 'color') return bg.value;
-    return 'var(--canvas-bg)';
+    return resolveCanvasBackgroundColor(store?.settings.background);
   }
 </script>
 

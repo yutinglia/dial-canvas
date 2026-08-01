@@ -1,4 +1,5 @@
 export type { Point, Rect, Size } from './types';
+export { occupiedRects } from './occupiedRects';
 export { snapScalar, snapRect } from './snap';
 export {
   alignSnapRect,

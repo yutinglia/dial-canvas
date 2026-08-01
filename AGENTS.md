@@ -23,12 +23,15 @@ CI runs `check` + `test`. AMO publish, temp-load, and Chrome scripts: see README
 ```
 entrypoints/     # newtab (primary UI), options (thin shell), background.ts
 components/      # canvas, cells, modals, toolbar, widgets/
+  settings/      # SettingsPanel section components
 lib/
   schemas/       # Zod: dial, widget, settings, store
-  storage/       # repository, migrate, optional Firefox Sync
+  storage/       # repository, migrate, storeIo, optional Firefox Sync
   layout/        # DOM-free snap / collision / placement (unit-tested)
-  dials/         # favicon, title, bookmarks, wallpaper, seed
-  widgets/       # widget domain helpers
+  dials/         # favicon, title, bookmarks, wallpaper, Bing actions
+  widgets/       # widget domain helpers + createWidget
+  settings/      # settings UI helpers (background source, sync label)
+  newtab/        # pure page actions for the new-tab hub
 public/_locales/ # en, zh_TW
 ```
 
@@ -44,7 +47,7 @@ public/_locales/ # en, zh_TW
 
 ## Code style and conventions
 
-- **File size**: keep source files under ~1000 lines. Extract helpers, subcomponents, or pure modules before crossing that. When editing an already-oversized file (e.g. `entrypoints/newtab/App.svelte`, `components/SettingsPanel.svelte`), split out the touched concern instead of adding bulk.
+- **File size**: do not grow huge source files. Prefer splitting into helpers, subcomponents, or pure modules; when touching a large file, extract the concern you are changing instead of adding more bulk.
 - **Separation**: Svelte owns interaction/rendering; domain, math, and persistence live in `lib/`. Do not put layout math or Zod parsing in components.
 - **Small focused units**: one concern per module/component; avoid god-components and catch-all util dumps.
 - **Naming**: PascalCase Svelte components; camelCase TS files; tests as `*.test.ts` next to modules under `lib/`.
@@ -63,7 +66,7 @@ public/_locales/ # en, zh_TW
 
 - Run `npm test` and `npm run check` after logic or schema changes.
 - Extend Zod schemas and `migrate.ts` when changing store shape.
-- Split files approaching the ~1000-line limit.
+- Split large files instead of growing them further.
 
 **Ask first**
 
@@ -74,4 +77,4 @@ public/_locales/ # en, zh_TW
 - Commit `.env` / AMO JWT secrets.
 - Edit generated `.wxt/` or `.output/`.
 - Add content scripts without an explicit ask.
-- Grow a single file past ~1000 lines when a split is practical.
+- Keep stuffing a huge file when a split is practical.
