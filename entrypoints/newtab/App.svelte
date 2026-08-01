@@ -22,7 +22,6 @@
     defaultWeatherWidgetSize,
     findFirstFreeSlot,
     findNearestFreeSlot,
-    shiftRectForCanvasResize,
     type Rect,
     type Size,
   } from '../../lib/layout';
@@ -91,8 +90,6 @@
   let widgetPickerOpen = $state(false);
   let widgetEditorOpen = $state(false);
   let editingWidget = $state<Widget | null>(null);
-  let canvasSize = $state<Size>({ width: 1200, height: 800 });
-  let canvasMeasured = $state(false);
   let toastMessage = $state('');
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
   let showEditHint = $state(false);
@@ -119,6 +116,14 @@
 
   const activeDials = $derived(store ? getActiveDials(store) : []);
   const activeWidgets = $derived(store ? getActiveWidgets(store) : []);
+  /** Locked layout size for placement; falls back to canvas mins before lock. */
+  const canvasSize = $derived.by((): Size => {
+    if (store?.layoutSize) return store.layoutSize;
+    return {
+      width: store?.settings.canvasMinWidth ?? 1200,
+      height: store?.settings.canvasMinHeight ?? 800,
+    };
+  });
 
   function occupiedRects(
     dials: Dial[] = activeDials,
@@ -576,58 +581,10 @@
     void persist(withActiveWidgets(store, widgets), opts?.immediate ?? true);
   }
 
-  function onCanvasSizeChange(size: Size) {
-    if (!store) {
-      canvasSize = size;
-      return;
-    }
-    if (
-      size.width === canvasSize.width &&
-      size.height === canvasSize.height
-    ) {
-      return;
-    }
-
-    const prev = canvasSize;
-    canvasSize = size;
-
-    // First measure: adopt size without shifting stored positions.
-    if (!canvasMeasured) {
-      canvasMeasured = true;
-      return;
-    }
-
-    const pages = store.pages.map((page) => ({
-      ...page,
-      dials: page.dials.map((dial) => ({
-        ...dial,
-        ...shiftRectForCanvasResize(
-          {
-            x: dial.x,
-            y: dial.y,
-            width: dial.width,
-            height: dial.height,
-          },
-          prev,
-          size,
-        ),
-      })),
-      widgets: page.widgets.map((widget) => ({
-        ...widget,
-        ...shiftRectForCanvasResize(
-          {
-            x: widget.x,
-            y: widget.y,
-            width: widget.width,
-            height: widget.height,
-          },
-          prev,
-          size,
-        ),
-      })),
-    }));
-
-    void persist({ ...store, pages }, false);
+  /** Lock freeform layout size once; never rewrites dial/widget positions. */
+  function onLayoutSizeLock(size: Size) {
+    if (!store || store.layoutSize) return;
+    void persist({ ...store, layoutSize: size }, false);
   }
 
   function onSettingsChange(
@@ -1336,6 +1293,7 @@
         dials={activeDials}
         widgets={activeWidgets}
         settings={store.settings}
+        layoutSize={store.layoutSize}
         {editMode}
         searchQuery={searchOpen ? searchQuery : ''}
         {onDialsChange}
@@ -1343,7 +1301,7 @@
         onPatchWidget={patchWidget}
         onEditDial={openEditDial}
         onEditWidget={openEditWidget}
-        {onCanvasSizeChange}
+        {onLayoutSizeLock}
         onContextMenu={onDialContextMenu}
         onWidgetContextMenu={onWidgetContextMenu}
         onCanvasContextMenu={onCanvasContextMenu}

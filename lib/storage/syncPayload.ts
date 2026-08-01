@@ -111,12 +111,14 @@ function slimPage(page: Page): Page {
 
 /** Strip oversized image bytes so the store can fit in storage.sync. */
 export function slimStoreForSync(store: Store): Store {
-  return {
+  const next: Store = {
     version: STORE_VERSION,
     activePageId: store.activePageId,
     pages: store.pages.map(slimPage),
     settings: slimSettings(store.settings),
   };
+  if (store.layoutSize) next.layoutSize = store.layoutSize;
+  return next;
 }
 
 export type BuildSyncItemsResult =

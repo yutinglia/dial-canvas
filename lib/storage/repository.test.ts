@@ -21,6 +21,7 @@ const validDial = {
   id: 'd1',
   title: 'Example',
   url: 'https://example.com/',
+  showWhenNarrow: false,
   x: 0,
   y: 0,
   width: 64,
@@ -163,7 +164,7 @@ describe('getStore migrate write-back', () => {
     expect(stored[STORAGE_KEYS.store]).toEqual(loaded.store);
   });
 
-  it('migrates v1 payloads and write-backs v3', async () => {
+  it('migrates v1 payloads and write-backs current version', async () => {
     await browser.storage.local.set({
       [STORAGE_KEYS.store]: {
         version: 1,
@@ -174,12 +175,12 @@ describe('getStore migrate write-back', () => {
 
     const loaded = await getStore();
     expect(loaded.repaired).toBe(true);
-    expect(loaded.store.version).toBe(3);
+    expect(loaded.store.version).toBe(STORE_VERSION);
     expect(getActiveDials(loaded.store)).toEqual([validDial]);
     expect(loaded.store.pages[0]?.widgets).toEqual([]);
 
     const stored = await browser.storage.local.get(STORAGE_KEYS.store);
-    expect((stored[STORAGE_KEYS.store] as Store).version).toBe(3);
+    expect((stored[STORAGE_KEYS.store] as Store).version).toBe(STORE_VERSION);
   });
 
   it('seeds and persists when storage is empty', async () => {

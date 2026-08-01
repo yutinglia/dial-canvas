@@ -403,7 +403,7 @@ describe('migrateStore', () => {
       settings: DEFAULT_SETTINGS,
     });
     expect(result.repaired).toBe(true);
-    expect(result.store.version).toBe(3);
+    expect(result.store.version).toBe(STORE_VERSION);
     expect(result.store.pages).toHaveLength(1);
     expect(result.store.pages[0]?.name).toBe('Home');
     expect(getActiveDials(result.store)).toEqual([validDial]);
@@ -418,9 +418,30 @@ describe('migrateStore', () => {
       settings: DEFAULT_SETTINGS,
     });
     expect(result.repaired).toBe(true);
-    expect(result.store.version).toBe(3);
+    expect(result.store.version).toBe(STORE_VERSION);
     expect(getActiveDials(result.store)).toEqual([validDial]);
     expect(getActiveWidgets(result.store)).toEqual([]);
+  });
+
+  it('migrates v3 stores to v4 without forcing layoutSize', () => {
+    const result = migrateStoreWithMeta({
+      version: 3,
+      pages: [
+        {
+          id: 'page-home',
+          name: 'Home',
+          dials: [validDial],
+          widgets: [validClock],
+        },
+      ],
+      activePageId: 'page-home',
+      settings: DEFAULT_SETTINGS,
+    });
+    expect(result.repaired).toBe(true);
+    expect(result.store.version).toBe(STORE_VERSION);
+    expect(result.store.layoutSize).toBeUndefined();
+    expect(getActiveDials(result.store)).toEqual([validDial]);
+    expect(getActiveWidgets(result.store)).toEqual([validClock]);
   });
 
   it('still recovers unknown / missing version via parseStore', () => {

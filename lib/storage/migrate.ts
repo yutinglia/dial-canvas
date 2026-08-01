@@ -32,8 +32,19 @@ function migrateV2ToV3(raw: Record<string, unknown>): Record<string, unknown> {
     : raw.pages;
   return {
     ...raw,
-    version: STORE_VERSION,
+    version: 3,
     pages,
+  };
+}
+
+/**
+ * Migrate v3 → v4: introduce optional layoutSize (locked at runtime on first
+ * wide measure; leave absent so existing absolute coords stay valid).
+ */
+function migrateV3ToV4(raw: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...raw,
+    version: STORE_VERSION,
   };
 }
 
@@ -52,14 +63,20 @@ export function migrateStoreWithMeta(raw: unknown): ParseStoreResult {
       return parseStoreWithMeta(raw);
     }
 
+    if (version === 3) {
+      const migrated = migrateV3ToV4(record);
+      const parsed = parseStoreWithMeta(migrated);
+      return { ...parsed, repaired: true };
+    }
+
     if (version === 2) {
-      const migrated = migrateV2ToV3(record);
+      const migrated = migrateV3ToV4(migrateV2ToV3(record));
       const parsed = parseStoreWithMeta(migrated);
       return { ...parsed, repaired: true };
     }
 
     if (version === 1) {
-      const migrated = migrateV2ToV3(migrateV1ToV2(record));
+      const migrated = migrateV3ToV4(migrateV2ToV3(migrateV1ToV2(record)));
       const parsed = parseStoreWithMeta(migrated);
       // Always treat version bumps as repaired so callers persist the new shape.
       return { ...parsed, repaired: true };

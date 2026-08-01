@@ -11,6 +11,7 @@
     alignSnapRect,
     canvasOrigin,
     clampRect,
+    fitCanvasInViewport,
     intersects,
     layoutNarrowStack,
     resolveDrop,
@@ -40,12 +41,15 @@
     settings: Settings;
     editMode: boolean;
     searchQuery?: string;
+    /** Locked freeform layout size from the store (set after first wide measure). */
+    layoutSize?: Size;
     onDialsChange: (dials: Dial[], opts?: { immediate?: boolean }) => void;
     onWidgetsChange?: (widgets: Widget[], opts?: { immediate?: boolean }) => void;
     onPatchWidget?: (widget: Widget) => void;
     onEditDial: (dial: Dial) => void;
     onEditWidget?: (widget: Widget) => void;
-    onCanvasSizeChange?: (size: Size) => void;
+    /** Persist the locked layout size once (no dial/widget rewrites). */
+    onLayoutSizeLock?: (size: Size) => void;
     onContextMenu: (dial: Dial, event: MouseEvent) => void;
     onWidgetContextMenu?: (widget: Widget, event: MouseEvent) => void;
     onCanvasContextMenu?: (
@@ -62,12 +66,13 @@
     settings,
     editMode,
     searchQuery = '',
+    layoutSize,
     onDialsChange,
     onWidgetsChange,
     onPatchWidget,
     onEditDial,
     onEditWidget,
-    onCanvasSizeChange,
+    onLayoutSizeLock,
     onContextMenu,
     onWidgetContextMenu,
     onCanvasContextMenu,
@@ -79,10 +84,11 @@
 
   let viewportEl: HTMLDivElement | undefined = $state();
   let canvasEl: HTMLDivElement | undefined = $state();
-  let canvasSize = $state<Size>({ width: 1200, height: 800 });
   let viewportSize = $state<Size>({ width: 1200, height: 800 });
   let selectedIds = $state<string[]>([]);
   let previewById = $state<Record<string, Rect>>({});
+  /** Avoid spamming onLayoutSizeLock before the store prop catches up. */
+  let layoutLockRequested = false;
 
   type Interaction =
     | {
@@ -206,34 +212,37 @@
     viewportSize = next;
   }
 
-  function measureCanvas() {
-    // Skip while narrow so a temporary shrink does not reflow stored layout.
+  /** Propose and lock layout size once on first wide measure. */
+  function maybeLockLayoutSize() {
+    if (layoutSize || layoutLockRequested) return;
+    // Skip while narrow so a temporary shrink does not lock a tiny layout.
     if (!editMode && viewportSize.width < settings.narrowBreakpoint) return;
-    const next = {
+    if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
+    layoutLockRequested = true;
+    onLayoutSizeLock?.({
       width: Math.max(settings.canvasMinWidth, viewportSize.width),
       height: Math.max(settings.canvasMinHeight, viewportSize.height),
-    };
-    if (
-      next.width === canvasSize.width &&
-      next.height === canvasSize.height
-    ) {
-      return;
-    }
-    canvasSize = next;
-    onCanvasSizeChange?.(next);
+    });
   }
 
   function measureAll() {
     measureViewport();
-    measureCanvas();
+    maybeLockLayoutSize();
   }
 
-  /** Center overflow when canvas min exceeds the viewport. */
-  const canvasOffsetX = $derived(
-    isNarrow ? 0 : (viewportSize.width - canvasSize.width) / 2,
+  /** Fixed layout coordinate space (locked size, or provisional until lock). */
+  const canvasSize = $derived(
+    layoutSize ?? {
+      width: Math.max(settings.canvasMinWidth, viewportSize.width),
+      height: Math.max(settings.canvasMinHeight, viewportSize.height),
+    },
   );
-  const canvasOffsetY = $derived(
-    isNarrow ? 0 : (viewportSize.height - canvasSize.height) / 2,
+
+  /** Uniform scale + center so the whole canvas follows the viewport. */
+  const fit = $derived(
+    isNarrow
+      ? { scale: 1, offsetX: 0, offsetY: 0 }
+      : fitCanvasInViewport(canvasSize, viewportSize),
   );
 
   $effect(() => {
@@ -241,6 +250,7 @@
     void settings.canvasMinHeight;
     void settings.narrowBreakpoint;
     void editMode;
+    void layoutSize;
     measureAll();
     const observer = new ResizeObserver(() => measureAll());
     if (viewportEl) observer.observe(viewportEl);
@@ -350,7 +360,12 @@
   function clientToCanvas(clientX: number, clientY: number): { x: number; y: number } {
     if (!canvasEl) return { x: 0, y: 0 };
     const bounds = canvasEl.getBoundingClientRect();
-    return { x: clientX - bounds.left, y: clientY - bounds.top };
+    if (bounds.width <= 0 || bounds.height <= 0) return { x: 0, y: 0 };
+    // Map through CSS scale via bounding rect → layout coordinates.
+    return {
+      x: ((clientX - bounds.left) * canvasSize.width) / bounds.width,
+      y: ((clientY - bounds.top) * canvasSize.height) / bounds.height,
+    };
   }
 
   function lookupItemRect(id: string): Rect | null {
@@ -688,11 +703,7 @@
     if (el.closest('button, a, input, textarea, select')) return;
 
     event.preventDefault();
-    const bounds = canvasEl.getBoundingClientRect();
-    onCanvasContextMenu(event, {
-      x: event.clientX - bounds.left,
-      y: event.clientY - bounds.top,
-    });
+    onCanvasContextMenu(event, clientToCanvas(event.clientX, event.clientY));
   }
 </script>
 
@@ -703,8 +714,10 @@
     class:inset-0={isNarrow}
     style:width={isNarrow ? undefined : `${canvasSize.width}px`}
     style:height={isNarrow ? undefined : `${canvasSize.height}px`}
-    style:left={isNarrow ? undefined : `${canvasOffsetX}px`}
-    style:top={isNarrow ? undefined : `${canvasOffsetY}px`}
+    style:transform={isNarrow
+      ? undefined
+      : `translate(${fit.offsetX}px, ${fit.offsetY}px) scale(${fit.scale})`}
+    style:transform-origin={isNarrow ? undefined : '0 0'}
     style:cursor={interaction?.kind === 'move'
       ? 'grabbing'
       : interaction?.kind === 'marquee'

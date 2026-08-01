@@ -3,7 +3,7 @@ import { DialSchema, type Dial } from './dial';
 import { DEFAULT_SETTINGS, SettingsSchema, type Settings } from './settings';
 import { WidgetSchema, type Widget } from './widget';
 
-export const STORE_VERSION = 3 as const;
+export const STORE_VERSION = 4 as const;
 
 export const PageSchema = z.object({
   id: z.string().min(1),
@@ -14,11 +14,20 @@ export const PageSchema = z.object({
 
 export type Page = z.infer<typeof PageSchema>;
 
+/** Locked freeform layout coordinate space; set once on first wide measure. */
+export const LayoutSizeSchema = z.object({
+  width: z.number().finite().positive(),
+  height: z.number().finite().positive(),
+});
+
+export type LayoutSize = z.infer<typeof LayoutSizeSchema>;
+
 export const StoreSchema = z.object({
   version: z.literal(STORE_VERSION),
   pages: z.array(PageSchema).min(1),
   activePageId: z.string().min(1),
   settings: SettingsSchema,
+  layoutSize: LayoutSizeSchema.optional(),
 });
 
 export type Store = z.infer<typeof StoreSchema>;
@@ -248,13 +257,21 @@ function recoverStore(raw: Record<string, unknown>): ParseStoreResult {
   const activePageId = normalizeActivePageId(pages, raw.activePageId);
   if (activePageId !== raw.activePageId) repaired = true;
 
+  const layoutParsed = LayoutSizeSchema.safeParse(raw.layoutSize);
+  const store: Store = {
+    version: STORE_VERSION,
+    pages,
+    activePageId,
+    settings: recoveredSettings.settings,
+  };
+  if (layoutParsed.success) {
+    store.layoutSize = layoutParsed.data;
+  } else if (raw.layoutSize !== undefined) {
+    repaired = true;
+  }
+
   return {
-    store: {
-      version: STORE_VERSION,
-      pages,
-      activePageId,
-      settings: recoveredSettings.settings,
-    },
+    store,
     repaired: repaired || droppedDialCount > 0 || droppedWidgetCount > 0,
     droppedDialCount,
     droppedWidgetCount,

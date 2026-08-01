@@ -27,6 +27,7 @@ export {
   findNearestFreeSlot,
   type DropSettings,
 } from './placement';
+export { fitCanvasInViewport, type FitScale } from './fitScale';
 export {
   layoutNarrowStack,
   NARROW_STACK_GAP,
