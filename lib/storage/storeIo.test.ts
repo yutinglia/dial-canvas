@@ -130,7 +130,7 @@ describe('downloadStoreJson', () => {
     downloadStoreJson(createEmptyStore([validDial]));
 
     expect(createObjectURL).toHaveBeenCalledOnce();
-    expect(anchor.download).toMatch(/^my-speed-dial-backup-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(anchor.download).toMatch(/^dial-canvas-backup-\d{4}-\d{2}-\d{2}\.json$/);
     expect(click).toHaveBeenCalledOnce();
     expect(revoke).toHaveBeenCalledWith('blob:mock');
   });

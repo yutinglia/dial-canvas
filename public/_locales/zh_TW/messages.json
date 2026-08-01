@@ -1,9 +1,9 @@
 {
   "extName": {
-    "message": "我的快速撥號"
+    "message": "Dial Canvas"
   },
   "extDescription": {
-    "message": "可自由配置的新分頁快速撥號。"
+    "message": "可自由配置撥號與小工具的新分頁畫布。"
   },
   "loading": {
     "message": "載入中…"
@@ -81,7 +81,7 @@
     "message": "匯入完成。"
   },
   "importFailed": {
-    "message": "匯入失敗。請確認檔案為有效的快速撥號備份。"
+    "message": "匯入失敗。請確認檔案為有效的 Dial Canvas 備份。"
   },
   "exportFailed": {
     "message": "匯出失敗。"
@@ -339,7 +339,7 @@
     "message": "無法從儲存空間同步。"
   },
   "loadFailed": {
-    "message": "無法載入快速撥號資料。"
+    "message": "無法載入 Dial Canvas 資料。"
   },
   "storeVersionUnsupported": {
     "message": "此版面是由較新的 Dial Canvas 儲存的。請更新擴充功能以免遺失資料。"

@@ -23,8 +23,8 @@ export const SYNC_MAX_ITEM_BYTES = 8_192;
  */
 export const SYNC_CHUNK_CHAR_BUDGET = 7_500;
 
-export const SYNC_META_KEY = 'msdSyncMeta';
-export const SYNC_CHUNK_KEY_PREFIX = 'msdSyncChunk';
+export const SYNC_META_KEY = 'dial-canvas-sync-meta';
+export const SYNC_CHUNK_KEY_PREFIX = 'dial-canvas-sync-chunk';
 
 export type SyncMeta = {
   /** Epoch ms of the store revision this payload represents. */

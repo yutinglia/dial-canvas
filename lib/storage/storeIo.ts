@@ -18,7 +18,7 @@ export function downloadStoreJson(store: Store): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `my-speed-dial-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `dial-canvas-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }

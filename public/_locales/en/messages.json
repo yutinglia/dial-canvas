@@ -1,9 +1,9 @@
 {
   "extName": {
-    "message": "My Speed Dial"
+    "message": "Dial Canvas"
   },
   "extDescription": {
-    "message": "A customizable free-form speed dial for your new tab page."
+    "message": "A customizable free-form dials and widgets canvas for your new tab page."
   },
   "loading": {
     "message": "Loading…"
@@ -81,7 +81,7 @@
     "message": "Import complete."
   },
   "importFailed": {
-    "message": "Import failed. Check that the file is a valid Speed Dial backup."
+    "message": "Import failed. Check that the file is a valid Dial Canvas backup."
   },
   "exportFailed": {
     "message": "Export failed."
@@ -339,7 +339,7 @@
     "message": "Failed to sync from storage."
   },
   "loadFailed": {
-    "message": "Failed to load speed dial data."
+    "message": "Failed to load Dial Canvas data."
   },
   "storeVersionUnsupported": {
     "message": "This layout was saved by a newer Dial Canvas. Update the extension to avoid losing data."

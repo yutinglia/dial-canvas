@@ -91,7 +91,7 @@
   } from '../../lib/storage/storeIo';
   import { setLocalePreference, t } from '../../lib/i18n';
 
-  const EDIT_HINT_KEY = 'msd-edit-hint-seen';
+  const EDIT_HINT_KEY = 'dial-canvas-edit-hint-seen';
 
   let store = $state<Store | null>(null);
   let syncEnabled = $state(false);
