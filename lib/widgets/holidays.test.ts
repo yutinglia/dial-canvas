@@ -1,6 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearHolidaysCache,
+  fetchHolidayCountries,
+  fetchNextPublicHolidays,
   formatHolidayDate,
   limitUpcomingHolidays,
   parseHolidayCountries,
@@ -114,5 +116,86 @@ describe('formatHolidayDate', () => {
     expect(formatted).not.toBe('2026-08-01');
     expect(formatted.length).toBeGreaterThan(0);
     expect(formatHolidayDate('not-a-date')).toBe('not-a-date');
+  });
+});
+
+describe('fetchHolidayCountries / fetchNextPublicHolidays', () => {
+  afterEach(() => {
+    clearHolidaysCache();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('fetches, caches, and reuses countries', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => [{ countryCode: 'TW', name: 'Taiwan' }],
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await fetchHolidayCountries(1_000);
+    expect(first).toEqual({
+      ok: true,
+      countries: [{ countryCode: 'TW', name: 'Taiwan' }],
+    });
+    const second = await fetchHolidayCountries(1_100);
+    expect(second).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('maps HTTP and network failures for countries', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 502,
+        json: async () => ({}),
+      })),
+    );
+    await expect(fetchHolidayCountries()).resolves.toEqual({
+      ok: false,
+      error: 'HTTP 502',
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline');
+      }),
+    );
+    await expect(fetchHolidayCountries()).resolves.toEqual({
+      ok: false,
+      error: 'offline',
+    });
+  });
+
+  it('validates country codes and caches holiday lists', async () => {
+    await expect(fetchNextPublicHolidays('nope')).resolves.toEqual({
+      ok: false,
+      error: 'Invalid country code.',
+    });
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        {
+          date: '2099-01-01',
+          localName: 'New Year',
+          name: 'New Year',
+          countryCode: 'US',
+          global: true,
+        },
+      ],
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await fetchNextPublicHolidays('us', 1, 1_000);
+    expect(first).toMatchObject({
+      ok: true,
+      holidays: [expect.objectContaining({ date: '2099-01-01' })],
+    });
+    const second = await fetchNextPublicHolidays('US', 1, 1_100);
+    expect(second).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

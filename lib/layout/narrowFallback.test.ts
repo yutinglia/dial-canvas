@@ -4,6 +4,7 @@ import {
   NARROW_FALLBACK_CLOCK_ID,
   createNarrowFallbackClock,
   hasNarrowKeepers,
+  isNarrowFallbackClockId,
   pickNarrowFallbackClock,
 } from './narrowFallback';
 
@@ -85,5 +86,12 @@ describe('createNarrowFallbackClock', () => {
     const tiny = createNarrowFallbackClock({ width: 50, height: 1000 });
     expect(tiny.width).toBe(64);
     expect(tiny.height).toBe(220);
+  });
+});
+
+describe('isNarrowFallbackClockId', () => {
+  it('identifies the synthetic fallback id', () => {
+    expect(isNarrowFallbackClockId(NARROW_FALLBACK_CLOCK_ID)).toBe(true);
+    expect(isNarrowFallbackClockId('clock-1')).toBe(false);
   });
 });

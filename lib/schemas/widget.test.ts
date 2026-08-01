@@ -3,6 +3,8 @@ import {
   ClockWidgetSchema,
   WeatherWidgetSchema,
   WidgetSchema,
+  normalizeWidgetBackgroundColor,
+  normalizeWidgetBackgroundOpacity,
 } from './widget';
 
 const baseRect = {
@@ -196,5 +198,14 @@ describe('WidgetSchema', () => {
         iconSize: 128,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('normalizeWidgetBackground helpers', () => {
+  it('delegates color and opacity normalization', () => {
+    expect(normalizeWidgetBackgroundColor('#AaBbCc')).toBe('#aabbcc');
+    expect(normalizeWidgetBackgroundColor('nope')).toBeUndefined();
+    expect(normalizeWidgetBackgroundOpacity(0.5)).toBe(0.5);
+    expect(normalizeWidgetBackgroundOpacity(2)).toBeUndefined();
   });
 });

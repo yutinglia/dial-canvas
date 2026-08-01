@@ -80,4 +80,25 @@ describe('extractFaviconFromHtml', () => {
       extractFaviconFromHtml('<html><head></head></html>', 'https://example.com/'),
     ).toBeNull();
   });
+
+  it('scores apple-touch icons and skips non-http schemes', () => {
+    const html = `
+      <link rel="apple-touch-icon" href="/apple.png" sizes="180x180">
+      <link rel="icon" href="data:image/png;base64,abc">
+    `;
+    expect(extractFaviconFromHtml(html, 'https://example.com/')).toBe(
+      'https://example.com/apple.png',
+    );
+  });
+
+  it('falls back when base href is invalid', () => {
+    const html = `
+      <base href="::bad::">
+      <link rel="icon" href="/ok.ico">
+    `;
+    expect(extractFaviconFromHtml(html, 'https://example.com/page')).toBe(
+      'https://example.com/ok.ico',
+    );
+    expect(extractFaviconFromHtml(html, 'not-a-url')).toBeNull();
+  });
 });

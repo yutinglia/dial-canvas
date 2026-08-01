@@ -27,6 +27,7 @@ describe('pageActions', () => {
     const next = renamePage(base, pageId, '  Home  ');
     expect(next?.pages[0]?.name).toBe('Home');
     expect(renamePage(base, pageId, '   ')).toBeNull();
+    expect(renamePage(base, 'missing', 'Nope')).toBeNull();
   });
 
   it('deletePage refuses last page', () => {
@@ -40,5 +41,16 @@ describe('pageActions', () => {
     const next = deletePage(store, other.id);
     expect(next?.pages).toHaveLength(1);
     expect(next?.activePageId).toBe(base.pages[0]!.id);
+    expect(deletePage(store, 'missing')).toBeNull();
+
+    const keepActive = deletePage(
+      {
+        ...base,
+        pages: [...base.pages, other],
+        activePageId: base.pages[0]!.id,
+      },
+      other.id,
+    );
+    expect(keepActive?.activePageId).toBe(base.pages[0]!.id);
   });
 });

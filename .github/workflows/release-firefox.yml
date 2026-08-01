@@ -78,7 +78,7 @@ jobs:
         run: npm ci
 
       - name: Test
-        run: npm test
+        run: npm run test:coverage
 
       - name: Zip Firefox extension
         run: npm run zip

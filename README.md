@@ -51,10 +51,11 @@ npm run dev:chrome    # Chromium (best-effort)
 npm run build:chrome
 npm run check         # svelte-check
 npm test              # Vitest unit tests (once)
+npm run test:coverage # Vitest + V8 coverage (80% gate on lib/)
 npm run test:watch    # Vitest watch mode
 ```
 
-Unit tests live next to pure modules under `lib/**/*.test.ts` (layout math, Zod/store parsing). Vitest is wired via `wxt/testing/vitest-plugin` so WXT aliases and `browser` polyfills work without a real browser.
+Unit tests live next to pure modules under `lib/**/*.test.ts` (layout math, Zod/store parsing). Vitest is wired via `wxt/testing/vitest-plugin` so WXT aliases and `browser` polyfills work without a real browser. `npm run test:coverage` fails if lines, statements, functions, or branches on `lib/` drop below 80%.
 
 ### Load temporarily in Firefox
 
@@ -105,7 +106,7 @@ Runs only from **`main`** (bump / manual release) or **`v*`** tags whose commit 
 
 ### CI
 
-**CI** runs `npm run check` and `npm test` on every push and pull request.
+**CI** runs `npm run check` and `npm run test:coverage` on every push and pull request (80% coverage gate on `lib/`).
 
 ### Dry-run / manual submit
 

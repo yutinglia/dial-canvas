@@ -14,9 +14,10 @@ npm run dev        # WXT + Firefox
 npm run build      # Firefox MV3 → .output/firefox-mv3
 npm run check      # svelte-check
 npm test           # Vitest (once)
+npm run test:coverage  # Vitest + V8 coverage (80% gate on lib/)
 ```
 
-CI runs `check` + `test`. AMO publish, temp-load, and Chrome scripts: see README.
+CI runs `check` + `test:coverage` (fails under 80% lines/functions/branches/statements on `lib/`). AMO publish, temp-load, and Chrome scripts: see README.
 
 ## Layout
 

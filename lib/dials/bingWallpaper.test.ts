@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildBingImageUrl,
   buildBingThumbUrl,
+  fetchBingArchiveJson,
   normalizeBingDate,
   parseBingWallpaperListResponse,
   parseBingWallpaperResponse,
+  requestBingWallpaper,
+  requestBingWallpaperList,
   utcDateString,
 } from './bingWallpaper';
 
@@ -207,6 +210,118 @@ describe('parseBingWallpaperListResponse', () => {
     expect(parseBingWallpaperListResponse({ images: [{}] })).toEqual({
       ok: false,
       error: 'Bing wallpaper URL missing.',
+    });
+  });
+});
+
+describe('fetchBingArchiveJson / request helpers', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('returns parsed JSON on success', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ images: [{ url: '/th?id=OHR.x' }] }),
+      })),
+    );
+    await expect(
+      fetchBingArchiveJson('https://www.bing.com/HPImageArchive.aspx'),
+    ).resolves.toEqual({
+      ok: true,
+      data: { images: [{ url: '/th?id=OHR.x' }] },
+    });
+  });
+
+  it('maps HTTP and network failures', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 503,
+        json: async () => ({}),
+      })),
+    );
+    await expect(
+      fetchBingArchiveJson('https://www.bing.com/HPImageArchive.aspx'),
+    ).resolves.toEqual({ ok: false, error: 'HTTP 503' });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline');
+      }),
+    );
+    await expect(
+      fetchBingArchiveJson('https://www.bing.com/HPImageArchive.aspx'),
+    ).resolves.toEqual({
+      ok: false,
+      error: 'Failed to fetch Bing wallpaper (offline).',
+    });
+  });
+
+  it('maps abort timeouts', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        const err = new Error('aborted');
+        err.name = 'AbortError';
+        throw err;
+      }),
+    );
+    await expect(
+      fetchBingArchiveJson('https://www.bing.com/HPImageArchive.aspx'),
+    ).resolves.toEqual({ ok: false, error: 'Request timed out.' });
+  });
+
+  it('requestBingWallpaper and list wrap fetch + parse', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          images: [
+            {
+              url: '/th?id=OHR.example_1920x1080.jpg',
+              urlbase: '/th?id=OHR.example',
+              startdate: '20260801',
+            },
+          ],
+        }),
+      })),
+    );
+    await expect(requestBingWallpaper()).resolves.toMatchObject({
+      ok: true,
+      url: 'https://www.bing.com/th?id=OHR.example_1920x1080.jpg',
+    });
+    await expect(requestBingWallpaperList()).resolves.toMatchObject({
+      ok: true,
+      images: [
+        expect.objectContaining({
+          url: 'https://www.bing.com/th?id=OHR.example_1920x1080.jpg',
+        }),
+      ],
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      })),
+    );
+    await expect(requestBingWallpaper()).resolves.toEqual({
+      ok: false,
+      error: 'HTTP 500',
+    });
+    await expect(requestBingWallpaperList()).resolves.toEqual({
+      ok: false,
+      error: 'HTTP 500',
     });
   });
 });
