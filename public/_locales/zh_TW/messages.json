@@ -551,6 +551,9 @@
   "canvasMinHeight": {
     "message": "畫布最小高度"
   },
+  "narrowLayoutEnabled": {
+    "message": "啟用窄螢幕版面"
+  },
   "narrowBreakpoint": {
     "message": "窄螢幕版面寬度"
   },

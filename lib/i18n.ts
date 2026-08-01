@@ -238,6 +238,7 @@ const FALLBACKS: Record<string, string> = {
   fitTile: 'Tile',
   canvasMinWidth: 'Min canvas width',
   canvasMinHeight: 'Min canvas height',
+  narrowLayoutEnabled: 'Enable narrow layout',
   narrowBreakpoint: 'Narrow layout below',
   showWhenNarrow: 'Show when window is narrow',
   narrowOrder: 'Narrow stack order',

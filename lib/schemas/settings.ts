@@ -85,6 +85,8 @@ export const SettingsSchema = z.object({
   snapThreshold: z.number().finite().positive().default(10),
   canvasMinWidth: z.number().finite().positive().default(1200),
   canvasMinHeight: z.number().finite().positive().default(800),
+  /** When false, always use the wide freeform layout regardless of viewport width. */
+  narrowLayoutEnabled: z.boolean().default(true),
   /** Viewport width below which narrow keeper layout applies. */
   narrowBreakpoint: z.number().int().min(320).max(1600).default(600),
   iconSize: z.number().int().min(16).max(64).default(40),

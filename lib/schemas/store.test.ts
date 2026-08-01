@@ -160,6 +160,7 @@ describe('SettingsSchema', () => {
     expect(DEFAULT_SETTINGS.snapEnabled).toBe(false);
     expect(DEFAULT_SETTINGS.iconSize).toBe(40);
     expect(DEFAULT_SETTINGS.fontSize).toBe(15);
+    expect(DEFAULT_SETTINGS.narrowLayoutEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.narrowBreakpoint).toBe(600);
   });
 

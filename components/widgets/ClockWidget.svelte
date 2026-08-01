@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { getIntlLocale } from '../../lib/i18n';
+  import { isNarrowFallbackClockId } from '../../lib/layout';
   import { formatClockDate, formatClockTime } from '../../lib/widgets/clock';
   import type { ClockWidget } from '../../lib/schemas/widget';
 
@@ -32,6 +33,7 @@
     if (timer) clearInterval(timer);
   });
 
+  const isFallback = $derived(isNarrowFallbackClockId(widget.id));
   const timeText = $derived(
     formatClockTime(now, {
       format: widget.format,
@@ -40,14 +42,18 @@
   );
   const dateText = $derived(formatClockDate(now, getIntlLocale()));
   const timeFontSize = $derived(
-    widget.fontSize !== undefined
-      ? `${widget.fontSize}px`
-      : 'clamp(1.25rem, 22%, 2.75rem)',
+    isFallback
+      ? 'clamp(2.5rem, 14vw, 5rem)'
+      : widget.fontSize !== undefined
+        ? `${widget.fontSize}px`
+        : 'clamp(1.25rem, 22%, 2.75rem)',
   );
   const dateFontSize = $derived(
-    widget.fontSize !== undefined
-      ? `${Math.max(11, Math.round(widget.fontSize * 0.42))}px`
-      : undefined,
+    isFallback
+      ? 'clamp(0.9rem, 4.5vw, 1.35rem)'
+      : widget.fontSize !== undefined
+        ? `${Math.max(11, Math.round(widget.fontSize * 0.42))}px`
+        : undefined,
   );
 </script>
 

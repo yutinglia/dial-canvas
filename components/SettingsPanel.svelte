@@ -517,6 +517,13 @@
     updateNarrowBreakpoint(DEFAULT_SETTINGS.narrowBreakpoint, true);
   }
 
+  function resetNarrowLayoutEnabled() {
+    onChange(
+      { narrowLayoutEnabled: DEFAULT_SETTINGS.narrowLayoutEnabled },
+      { immediate: true },
+    );
+  }
+
   function resetBackground() {
     source = 'color';
     wallpaperUrl = '';
@@ -871,40 +878,77 @@
             />
           </div>
 
-          <div class="mb-1 mt-4 block text-sm">
-            <div class="mb-1 flex items-center justify-between gap-2">
-              <span class="text-[var(--text-muted)]">
-                {t('narrowBreakpoint')}
-                <span class="ml-1">{narrowBreakpointLocal}px</span>
-              </span>
-              {#if settings.narrowBreakpoint !== DEFAULT_SETTINGS.narrowBreakpoint}
+          <div class="mb-4 mt-4 flex items-center justify-between gap-3 text-sm">
+            <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
+              <span class="text-[var(--text-muted)]"
+                >{t('narrowLayoutEnabled')}</span
+              >
+              {#if settings.narrowLayoutEnabled !==
+                DEFAULT_SETTINGS.narrowLayoutEnabled}
                 <button
                   type="button"
                   class="rounded px-2 py-0.5 text-xs"
                   style:border="1px solid var(--dial-border)"
                   style:color="var(--accent)"
-                  onclick={resetNarrowBreakpoint}
+                  onclick={resetNarrowLayoutEnabled}
                 >
                   {t('useDefault')}
                 </button>
               {/if}
             </div>
             <input
-              type="range"
-              min="320"
-              max="1600"
-              step="20"
-              bind:value={narrowBreakpointLocal}
-              class="w-full"
-              onpointerdown={beginSliderDrag}
-              onpointerup={flushNarrowBreakpoint}
-              onpointercancel={flushNarrowBreakpoint}
-              onchange={flushNarrowBreakpoint}
-              oninput={() =>
-                updateNarrowBreakpoint(Number(narrowBreakpointLocal), false)
+              type="checkbox"
+              checked={settings.narrowLayoutEnabled}
+              onchange={(e) =>
+                onChange(
+                  {
+                    narrowLayoutEnabled: (
+                      e.currentTarget as HTMLInputElement
+                    ).checked,
+                  },
+                  { immediate: true },
+                )
               }
             />
           </div>
+
+          {#if settings.narrowLayoutEnabled}
+            <div class="mb-1 block text-sm">
+              <div class="mb-1 flex items-center justify-between gap-2">
+                <span class="text-[var(--text-muted)]">
+                  {t('narrowBreakpoint')}
+                  <span class="ml-1">{narrowBreakpointLocal}px</span>
+                </span>
+                {#if settings.narrowBreakpoint !==
+                  DEFAULT_SETTINGS.narrowBreakpoint}
+                  <button
+                    type="button"
+                    class="rounded px-2 py-0.5 text-xs"
+                    style:border="1px solid var(--dial-border)"
+                    style:color="var(--accent)"
+                    onclick={resetNarrowBreakpoint}
+                  >
+                    {t('useDefault')}
+                  </button>
+                {/if}
+              </div>
+              <input
+                type="range"
+                min="320"
+                max="1600"
+                step="20"
+                bind:value={narrowBreakpointLocal}
+                class="w-full"
+                onpointerdown={beginSliderDrag}
+                onpointerup={flushNarrowBreakpoint}
+                onpointercancel={flushNarrowBreakpoint}
+                onchange={flushNarrowBreakpoint}
+                oninput={() =>
+                  updateNarrowBreakpoint(Number(narrowBreakpointLocal), false)
+                }
+              />
+            </div>
+          {/if}
         </section>
 
         <section class="mb-6 border-t pt-5" style:border-color="var(--dial-border)">

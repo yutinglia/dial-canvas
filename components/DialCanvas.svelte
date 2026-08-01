@@ -4,7 +4,7 @@
   import GridOverlay from './GridOverlay.svelte';
   import AlignGuides from './AlignGuides.svelte';
   import type { Dial } from '../lib/schemas/dial';
-  import type { Widget } from '../lib/schemas/widget';
+  import type { ClockWidget, Widget } from '../lib/schemas/widget';
   import type { Background, Settings } from '../lib/schemas/settings';
   import {
     activeAlignGuides,
@@ -14,6 +14,9 @@
     fitCanvasInViewport,
     intersects,
     layoutNarrowStack,
+    hasNarrowKeepers,
+    isNarrowFallbackClockId,
+    pickNarrowFallbackClock,
     resolveDrop,
     resolveGroupDrop,
     snapRect,
@@ -131,45 +134,70 @@
   const query = $derived(searchQuery.trim().toLowerCase());
   const hasQuery = $derived(query.length > 0);
   const isNarrow = $derived(
-    !editMode && viewportSize.width < settings.narrowBreakpoint,
+    !editMode &&
+      settings.narrowLayoutEnabled &&
+      viewportSize.width < settings.narrowBreakpoint,
   );
   const isEmpty = $derived(dials.length === 0 && widgets.length === 0);
 
+  const narrowFallbackClock = $derived.by((): ClockWidget | null => {
+    if (!isNarrow) return null;
+    if (hasNarrowKeepers(dials, widgets)) return null;
+    return pickNarrowFallbackClock(widgets, viewportSize);
+  });
+
   const narrowOverrides = $derived.by((): Record<string, Rect> => {
     if (!isNarrow) return {};
-    const stacked = layoutNarrowStack(
-      [
-        ...dials.map((d) => ({
-          id: d.id,
-          x: d.x,
-          y: d.y,
-          width: d.width,
-          height: d.height,
-          showWhenNarrow: d.showWhenNarrow,
-          narrowOrder: d.narrowOrder,
-        })),
-        ...widgets.map((w) => ({
-          id: w.id,
-          x: w.x,
-          y: w.y,
-          width: w.width,
-          height: w.height,
-          showWhenNarrow: w.showWhenNarrow,
-          narrowOrder: w.narrowOrder,
-        })),
-      ],
-      viewportSize,
-    );
+    const stackItems = narrowFallbackClock
+      ? [
+          {
+            id: narrowFallbackClock.id,
+            x: narrowFallbackClock.x,
+            y: narrowFallbackClock.y,
+            width: narrowFallbackClock.width,
+            height: narrowFallbackClock.height,
+            showWhenNarrow: true,
+          },
+        ]
+      : [
+          ...dials.map((d) => ({
+            id: d.id,
+            x: d.x,
+            y: d.y,
+            width: d.width,
+            height: d.height,
+            showWhenNarrow: d.showWhenNarrow,
+            narrowOrder: d.narrowOrder,
+          })),
+          ...widgets.map((w) => ({
+            id: w.id,
+            x: w.x,
+            y: w.y,
+            width: w.width,
+            height: w.height,
+            showWhenNarrow: w.showWhenNarrow,
+            narrowOrder: w.narrowOrder,
+          })),
+        ];
+    const stacked = layoutNarrowStack(stackItems, viewportSize);
     const map: Record<string, Rect> = {};
     for (const entry of stacked) map[entry.id] = entry.rect;
     return map;
   });
 
   const visibleDials = $derived(
-    isNarrow ? dials.filter((d) => d.showWhenNarrow) : dials,
+    isNarrow
+      ? narrowFallbackClock
+        ? []
+        : dials.filter((d) => d.showWhenNarrow)
+      : dials,
   );
   const visibleWidgets = $derived(
-    isNarrow ? widgets.filter((w) => w.showWhenNarrow) : widgets,
+    isNarrow
+      ? narrowFallbackClock
+        ? [narrowFallbackClock]
+        : widgets.filter((w) => w.showWhenNarrow)
+      : widgets,
   );
 
   const marqueeRect = $derived.by((): Rect | null => {
@@ -216,7 +244,13 @@
   function maybeLockLayoutSize() {
     if (layoutSize || layoutLockRequested) return;
     // Skip while narrow so a temporary shrink does not lock a tiny layout.
-    if (!editMode && viewportSize.width < settings.narrowBreakpoint) return;
+    if (
+      !editMode &&
+      settings.narrowLayoutEnabled &&
+      viewportSize.width < settings.narrowBreakpoint
+    ) {
+      return;
+    }
     if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
     layoutLockRequested = true;
     onLayoutSizeLock?.({
@@ -248,6 +282,7 @@
   $effect(() => {
     void settings.canvasMinWidth;
     void settings.canvasMinHeight;
+    void settings.narrowLayoutEnabled;
     void settings.narrowBreakpoint;
     void editMode;
     void layoutSize;
@@ -801,6 +836,7 @@
 
     {#each visibleWidgets as widget (widget.id)}
       {@const rect = displayRect(widget)}
+      {@const isFallback = isNarrowFallbackClockId(widget.id)}
       <WidgetCell
         widget={{ ...widget, ...rect }}
         {editMode}
@@ -809,11 +845,20 @@
         dragging={movingIds.has(widget.id)}
         dimmed={hasQuery}
         {background}
-        onEdit={(w) => onEditWidget?.(w)}
-        onPatch={onPatchWidget}
+        onEdit={(w) => {
+          if (isNarrowFallbackClockId(w.id)) return;
+          onEditWidget?.(w);
+        }}
+        onPatch={isFallback ? undefined : onPatchWidget}
         onMoveStart={onWidgetMoveStart}
         onResizeStart={onWidgetResizeStart}
-        onContextMenu={(w, e) => onWidgetContextMenu?.(w, e)}
+        onContextMenu={(w, e) => {
+          if (isNarrowFallbackClockId(w.id)) {
+            e.preventDefault();
+            return;
+          }
+          onWidgetContextMenu?.(w, e);
+        }}
       />
     {/each}
 

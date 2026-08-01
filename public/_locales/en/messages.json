@@ -551,6 +551,9 @@
   "canvasMinHeight": {
     "message": "Min canvas height"
   },
+  "narrowLayoutEnabled": {
+    "message": "Enable narrow layout"
+  },
   "narrowBreakpoint": {
     "message": "Narrow layout below"
   },

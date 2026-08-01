@@ -34,3 +34,10 @@ export {
   type NarrowStackItem,
   type NarrowStackResult,
 } from './narrowStack';
+export {
+  NARROW_FALLBACK_CLOCK_ID,
+  createNarrowFallbackClock,
+  hasNarrowKeepers,
+  isNarrowFallbackClockId,
+  pickNarrowFallbackClock,
+} from './narrowFallback';
