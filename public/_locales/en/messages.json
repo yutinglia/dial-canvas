@@ -422,6 +422,27 @@
   "settingsSectionData": {
     "message": "Data"
   },
+  "settingsSectionAbout": {
+    "message": "About"
+  },
+  "about": {
+    "message": "About"
+  },
+  "aboutVersion": {
+    "message": "Version $1"
+  },
+  "aboutLicenseMit": {
+    "message": "Released under the MIT License."
+  },
+  "aboutHomepage": {
+    "message": "Homepage / source"
+  },
+  "aboutPrivacy": {
+    "message": "Privacy policy"
+  },
+  "aboutLicense": {
+    "message": "License"
+  },
   "firefoxSyncEnable": {
     "message": "Sync with Firefox Account"
   },

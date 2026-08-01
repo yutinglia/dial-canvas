@@ -4,6 +4,12 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
+  "author": "yutinglia",
+  "homepage": "https://github.com/yutinglia/dial-canvas",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yutinglia/dial-canvas.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "wxt -b firefox",

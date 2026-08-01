@@ -6,11 +6,13 @@
   } from '../lib/dials/bingWallpaper';
   import type { SyncStatus } from '../lib/storage/firefoxSync';
   import { t } from '../lib/i18n';
+  import AboutModal from './AboutModal.svelte';
   import SettingsGeneralSection from './settings/SettingsGeneralSection.svelte';
   import SettingsLayoutSection from './settings/SettingsLayoutSection.svelte';
   import SettingsCanvasSection from './settings/SettingsCanvasSection.svelte';
   import SettingsBackgroundSection from './settings/SettingsBackgroundSection.svelte';
   import SettingsDataSection from './settings/SettingsDataSection.svelte';
+  import SettingsAboutSection from './settings/SettingsAboutSection.svelte';
 
   interface Props {
     open: boolean;
@@ -60,10 +62,12 @@
 
   let panelEl: HTMLDivElement | undefined = $state();
   let wasOpen = false;
+  let aboutOpen = $state(false);
 
   $effect(() => {
     if (!open) {
       wasOpen = false;
+      aboutOpen = false;
       return;
     }
     if (!wasOpen) {
@@ -73,7 +77,12 @@
   });
 
   function onKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') onClose();
+    if (event.key !== 'Escape') return;
+    if (aboutOpen) {
+      aboutOpen = false;
+      return;
+    }
+    onClose();
   }
 </script>
 
@@ -143,7 +152,10 @@
           {onReset}
           {onImportBookmarks}
         />
+        <SettingsAboutSection onOpenAbout={() => (aboutOpen = true)} />
       </div>
     </div>
   </div>
+
+  <AboutModal open={aboutOpen} onClose={() => (aboutOpen = false)} />
 {/if}

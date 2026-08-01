@@ -196,6 +196,13 @@ const FALLBACKS: Record<string, string> = {
   settingsSectionCanvas: 'Canvas',
   settingsSectionBackground: 'Background',
   settingsSectionData: 'Data',
+  settingsSectionAbout: 'About',
+  about: 'About',
+  aboutVersion: 'Version $1',
+  aboutLicenseMit: 'Released under the MIT License.',
+  aboutHomepage: 'Homepage / source',
+  aboutPrivacy: 'Privacy policy',
+  aboutLicense: 'License',
   firefoxSyncEnable: 'Sync with Firefox Account',
   firefoxSyncHint:
     'Keeps dials, widgets, and settings in sync across devices. Custom uploaded wallpapers and large favicons are not synced — use Export JSON for a full backup.',

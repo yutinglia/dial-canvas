@@ -8,6 +8,7 @@ export default defineConfig({
   manifest: {
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
+    homepage_url: 'https://github.com/yutinglia/dial-canvas',
     default_locale: 'en',
     permissions: ['storage', 'unlimitedStorage'],
     optional_permissions: ['bookmarks'],
