@@ -70,6 +70,20 @@ describe('WidgetSchema', () => {
     expect(parsed.backgroundOpacity).toBe(0.5);
   });
 
+  it('defaults showWhenNarrow to false and accepts narrowOrder', () => {
+    expect(
+      WidgetSchema.parse({ ...baseRect, type: 'clock' }).showWhenNarrow,
+    ).toBe(false);
+    expect(
+      WidgetSchema.parse({
+        ...baseRect,
+        type: 'clock',
+        showWhenNarrow: true,
+        narrowOrder: 1,
+      }),
+    ).toMatchObject({ showWhenNarrow: true, narrowOrder: 1 });
+  });
+
   it('accepts optional fontSize and weather iconSize', () => {
     expect(
       WidgetSchema.parse({

@@ -70,6 +70,30 @@ export function clampRect(rect: Rect, canvas: Size): Rect {
 }
 
 /**
+ * Keep a rect's offset from canvas mid when the canvas size changes.
+ * Translates by half the size delta, then clamps into the new canvas.
+ */
+export function shiftRectForCanvasResize(
+  rect: Rect,
+  prev: Size,
+  next: Size,
+): Rect {
+  if (prev.width === next.width && prev.height === next.height) {
+    return clampRect(rect, next);
+  }
+  const dx = (next.width - prev.width) / 2;
+  const dy = (next.height - prev.height) / 2;
+  return clampRect(
+    {
+      ...rect,
+      x: rect.x + dx,
+      y: rect.y + dy,
+    },
+    next,
+  );
+}
+
+/**
  * Commit a proposed rect: optional snap → clamp → no-overlap check.
  * When snap is on: grid snap (center origin) → center align snap → clamp.
  * On overlap, revert to previousValid.

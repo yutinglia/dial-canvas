@@ -9,6 +9,7 @@ export {
 export { intersects, hasOverlap } from './collision';
 export {
   clampRect,
+  shiftRectForCanvasResize,
   canvasOrigin,
   firstLatticeAtOrAbove,
   latticeRange,
@@ -25,3 +26,9 @@ export {
   findNearestFreeSlot,
   type DropSettings,
 } from './placement';
+export {
+  layoutNarrowStack,
+  NARROW_STACK_GAP,
+  type NarrowStackItem,
+  type NarrowStackResult,
+} from './narrowStack';

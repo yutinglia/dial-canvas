@@ -15,6 +15,7 @@ const validDial = {
   id: 'd1',
   title: 'Example',
   url: 'https://example.com/',
+  showWhenNarrow: false,
   x: 0,
   y: 0,
   width: 64,
@@ -27,6 +28,7 @@ const validClock = {
   format: '24h' as const,
   showSeconds: false,
   showDate: true,
+  showWhenNarrow: false,
   x: 200,
   y: 0,
   width: 160,
@@ -113,6 +115,26 @@ describe('DialSchema', () => {
     expect(DialSchema.parse(validDial).fontSize).toBeUndefined();
   });
 
+  it('defaults showWhenNarrow to false and accepts narrowOrder', () => {
+    const withoutFlag = {
+      id: 'd1',
+      title: 'Example',
+      url: 'https://example.com/',
+      x: 0,
+      y: 0,
+      width: 64,
+      height: 64,
+    };
+    expect(DialSchema.parse(withoutFlag).showWhenNarrow).toBe(false);
+    expect(
+      DialSchema.parse({
+        ...withoutFlag,
+        showWhenNarrow: true,
+        narrowOrder: 2,
+      }),
+    ).toMatchObject({ showWhenNarrow: true, narrowOrder: 2 });
+  });
+
   it('rejects out-of-range dial iconSize and fontSize', () => {
     expect(
       DialSchema.safeParse({ ...validDial, iconSize: 8 }).success,
@@ -138,6 +160,7 @@ describe('SettingsSchema', () => {
     expect(DEFAULT_SETTINGS.snapEnabled).toBe(false);
     expect(DEFAULT_SETTINGS.iconSize).toBe(40);
     expect(DEFAULT_SETTINGS.fontSize).toBe(15);
+    expect(DEFAULT_SETTINGS.narrowBreakpoint).toBe(600);
   });
 
   it('rejects out-of-range gridSize', () => {

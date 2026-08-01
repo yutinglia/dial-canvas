@@ -29,6 +29,8 @@
       fontSize?: number;
       backgroundColor?: string;
       backgroundOpacity?: number;
+      showWhenNarrow?: boolean;
+      narrowOrder?: number;
     }) => void;
     onDelete?: () => void;
   }
@@ -50,6 +52,8 @@
   let fontSizeOverride = $state<number | null>(null);
   let backgroundColorOverride = $state<string | null>(null);
   let backgroundOpacityOverride = $state<number | null>(null);
+  let showWhenNarrow = $state(false);
+  let narrowOrderText = $state('');
   let error = $state('');
   let titleStatus = $state('');
   let fetchingTitle = $state(false);
@@ -79,6 +83,9 @@
       fontSizeOverride = dial?.fontSize ?? null;
       backgroundColorOverride = dial?.backgroundColor ?? null;
       backgroundOpacityOverride = dial?.backgroundOpacity ?? null;
+      showWhenNarrow = dial?.showWhenNarrow ?? false;
+      narrowOrderText =
+        dial?.narrowOrder !== undefined ? String(dial.narrowOrder) : '';
       error = '';
       titleStatus = '';
       fetchingTitle = false;
@@ -261,6 +268,15 @@
       fontSize: fontSizeOverride ?? undefined,
       backgroundColor: backgroundColorOverride ?? undefined,
       backgroundOpacity: backgroundOpacityOverride ?? undefined,
+      showWhenNarrow,
+      narrowOrder: showWhenNarrow
+        ? (() => {
+            const trimmed = narrowOrderText.trim();
+            if (!trimmed) return undefined;
+            const n = Number(trimmed);
+            return Number.isInteger(n) ? n : undefined;
+          })()
+        : undefined,
     });
   }
 
@@ -479,6 +495,27 @@
           }}
         />
       </div>
+
+      <label class="mb-3 flex items-center gap-2 text-sm text-[var(--dial-title)]">
+        <input type="checkbox" bind:checked={showWhenNarrow} />
+        {t('showWhenNarrow')}
+      </label>
+
+      {#if showWhenNarrow}
+        <label class="mb-4 block text-sm">
+          <span class="mb-1 block text-[var(--text-muted)]"
+            >{t('narrowOrder')}</span
+          >
+          <input
+            class="w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
+            style:border-color="var(--dial-border)"
+            type="text"
+            inputmode="numeric"
+            bind:value={narrowOrderText}
+            placeholder={t('narrowOrderHint')}
+          />
+        </label>
+      {/if}
 
       {#if error}
         <p class="mb-3 text-sm" style:color="var(--danger)">{error}</p>

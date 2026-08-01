@@ -11,6 +11,7 @@
     alignSnapRect,
     canvasOrigin,
     clampRect,
+    layoutNarrowStack,
     resolveDrop,
     snapRect,
     type AlignGuides as AlignGuideLines,
@@ -76,6 +77,7 @@
 
   let canvasEl: HTMLDivElement | undefined = $state();
   let canvasSize = $state<Size>({ width: 1200, height: 800 });
+  let viewportSize = $state<Size>({ width: 1200, height: 800 });
   let selectedId = $state<string | null>(null);
   let previewById = $state<Record<string, Rect>>({});
 
@@ -107,7 +109,47 @@
 
   const query = $derived(searchQuery.trim().toLowerCase());
   const hasQuery = $derived(query.length > 0);
+  const isNarrow = $derived(
+    !editMode && viewportSize.width < settings.narrowBreakpoint,
+  );
   const isEmpty = $derived(dials.length === 0 && widgets.length === 0);
+
+  const narrowOverrides = $derived.by((): Record<string, Rect> => {
+    if (!isNarrow) return {};
+    const stacked = layoutNarrowStack(
+      [
+        ...dials.map((d) => ({
+          id: d.id,
+          x: d.x,
+          y: d.y,
+          width: d.width,
+          height: d.height,
+          showWhenNarrow: d.showWhenNarrow,
+          narrowOrder: d.narrowOrder,
+        })),
+        ...widgets.map((w) => ({
+          id: w.id,
+          x: w.x,
+          y: w.y,
+          width: w.width,
+          height: w.height,
+          showWhenNarrow: w.showWhenNarrow,
+          narrowOrder: w.narrowOrder,
+        })),
+      ],
+      viewportSize,
+    );
+    const map: Record<string, Rect> = {};
+    for (const entry of stacked) map[entry.id] = entry.rect;
+    return map;
+  });
+
+  const visibleDials = $derived(
+    isNarrow ? dials.filter((d) => d.showWhenNarrow) : dials,
+  );
+  const visibleWidgets = $derived(
+    isNarrow ? widgets.filter((w) => w.showWhenNarrow) : widgets,
+  );
 
   function matchesQuery(dial: Dial): boolean {
     if (!hasQuery) return true;
@@ -117,22 +159,57 @@
     );
   }
 
+  function measureViewport() {
+    if (!canvasEl) return;
+    const parent = canvasEl.parentElement;
+    const next = {
+      width: parent?.clientWidth || window.innerWidth,
+      height: parent?.clientHeight || window.innerHeight,
+    };
+    if (
+      next.width === viewportSize.width &&
+      next.height === viewportSize.height
+    ) {
+      return;
+    }
+    viewportSize = next;
+  }
+
   function measureCanvas() {
     if (!canvasEl) return;
+    // Skip while narrow so a temporary shrink does not reflow stored layout.
+    if (!editMode && viewportSize.width < settings.narrowBreakpoint) return;
     const next = {
       width: Math.max(settings.canvasMinWidth, canvasEl.clientWidth),
       height: Math.max(settings.canvasMinHeight, canvasEl.clientHeight),
     };
+    if (
+      next.width === canvasSize.width &&
+      next.height === canvasSize.height
+    ) {
+      return;
+    }
     canvasSize = next;
     onCanvasSizeChange?.(next);
+  }
+
+  function measureAll() {
+    measureViewport();
+    measureCanvas();
   }
 
   $effect(() => {
     void settings.canvasMinWidth;
     void settings.canvasMinHeight;
-    measureCanvas();
-    const observer = new ResizeObserver(() => measureCanvas());
-    if (canvasEl) observer.observe(canvasEl);
+    void settings.narrowBreakpoint;
+    void editMode;
+    measureAll();
+    const observer = new ResizeObserver(() => measureAll());
+    if (canvasEl) {
+      observer.observe(canvasEl);
+      const parent = canvasEl.parentElement;
+      if (parent) observer.observe(parent);
+    }
     return () => observer.disconnect();
   });
 
@@ -146,7 +223,7 @@
   }
 
   function displayRect(item: { id: string; x: number; y: number; width: number; height: number }): Rect {
-    return previewById[item.id] ?? itemRect(item);
+    return narrowOverrides[item.id] ?? previewById[item.id] ?? itemRect(item);
   }
 
   function liveCandidate(raw: Rect, others: Rect[]): Rect {
@@ -399,20 +476,20 @@
 <div
   bind:this={canvasEl}
   class="relative h-full w-full overflow-hidden"
-  style:min-width="{settings.canvasMinWidth}px"
-  style:min-height="{settings.canvasMinHeight}px"
+  style:min-width={isNarrow ? undefined : `${settings.canvasMinWidth}px`}
+  style:min-height={isNarrow ? undefined : `${settings.canvasMinHeight}px`}
   style:cursor={interaction?.kind === 'move' ? 'grabbing' : undefined}
   role="presentation"
   oncontextmenu={handleCanvasContextMenu}
 >
   <GridOverlay
     gridSize={settings.gridSize}
-    visible={snapGuidesVisible}
+    visible={snapGuidesVisible && !isNarrow}
     {canvasSize}
     emphasized={interactionActive}
   />
   <AlignGuides
-    visible={snapGuidesVisible}
+    visible={snapGuidesVisible && !isNarrow}
     {canvasSize}
     activeGuides={activeGuideLines}
   />
@@ -451,7 +528,7 @@
         </div>
       {/if}
     </div>
-  {:else if hasQuery && !dials.some(matchesQuery)}
+  {:else if hasQuery && !visibleDials.some(matchesQuery)}
     <div
       class="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center px-6 text-center text-sm text-[var(--text-muted)]"
     >
@@ -459,7 +536,7 @@
     </div>
   {/if}
 
-  {#each dials as dial (dial.id)}
+  {#each visibleDials as dial (dial.id)}
     {@const rect = displayRect(dial)}
     <DialCell
       dial={{ ...dial, ...rect }}
@@ -477,7 +554,7 @@
     />
   {/each}
 
-  {#each widgets as widget (widget.id)}
+  {#each visibleWidgets as widget (widget.id)}
     {@const rect = displayRect(widget)}
     <WidgetCell
       widget={{ ...widget, ...rect }}

@@ -18,6 +18,10 @@ const WidgetRectSchema = z.object({
   backgroundColor: backgroundColorString.optional(),
   backgroundOpacity: z.number().finite().min(0).max(1).optional(),
   fontSize: z.number().int().min(12).max(64).optional(),
+  /** When true, keep this widget visible in narrow (center-stack) layout. */
+  showWhenNarrow: z.boolean().default(false),
+  /** Lower values stack first; omit to sort by original y then x. */
+  narrowOrder: z.number().int().optional(),
 });
 
 export const WeatherLocationSchema = z.object({

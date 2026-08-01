@@ -551,6 +551,18 @@
   "canvasMinHeight": {
     "message": "畫布最小高度"
   },
+  "narrowBreakpoint": {
+    "message": "窄螢幕版面寬度"
+  },
+  "showWhenNarrow": {
+    "message": "窄螢幕時仍顯示"
+  },
+  "narrowOrder": {
+    "message": "窄螢幕堆疊順序"
+  },
+  "narrowOrderHint": {
+    "message": "數字越小越上方；空白依原本位置"
+  },
   "snapThreshold": {
     "message": "吸附閾值"
   },

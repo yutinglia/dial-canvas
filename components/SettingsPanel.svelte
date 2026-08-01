@@ -83,6 +83,7 @@
   let fontSizeLocal = $state(DEFAULT_SETTINGS.fontSize);
   let canvasMinWidthLocal = $state(DEFAULT_SETTINGS.canvasMinWidth);
   let canvasMinHeightLocal = $state(DEFAULT_SETTINGS.canvasMinHeight);
+  let narrowBreakpointLocal = $state(DEFAULT_SETTINGS.narrowBreakpoint);
   let opacityPercentLocal = $state(
     Math.round(DEFAULT_BACKGROUND_OPACITY * 100),
   );
@@ -106,6 +107,7 @@
     fontSizeLocal = settings.fontSize;
     canvasMinWidthLocal = settings.canvasMinWidth;
     canvasMinHeightLocal = settings.canvasMinHeight;
+    narrowBreakpointLocal = settings.narrowBreakpoint;
     opacityPercentLocal = Math.round(currentOpacity() * 100);
   }
 
@@ -446,6 +448,16 @@
     updateCanvasMinHeight(canvasMinHeightLocal, true);
   }
 
+  function updateNarrowBreakpoint(narrowBreakpoint: number, immediate: boolean) {
+    narrowBreakpointLocal = narrowBreakpoint;
+    onChange({ narrowBreakpoint }, { immediate });
+  }
+
+  function flushNarrowBreakpoint() {
+    endSliderDrag();
+    updateNarrowBreakpoint(narrowBreakpointLocal, true);
+  }
+
   function formatSyncTime(epochMs: number | undefined): string {
     if (!epochMs) return '';
     try {
@@ -499,6 +511,10 @@
 
   function resetCanvasMinHeight() {
     updateCanvasMinHeight(DEFAULT_SETTINGS.canvasMinHeight, true);
+  }
+
+  function resetNarrowBreakpoint() {
+    updateNarrowBreakpoint(DEFAULT_SETTINGS.narrowBreakpoint, true);
   }
 
   function resetBackground() {
@@ -851,6 +867,41 @@
               onchange={flushCanvasMinHeight}
               oninput={() =>
                 updateCanvasMinHeight(Number(canvasMinHeightLocal), false)
+              }
+            />
+          </div>
+
+          <div class="mb-1 mt-4 block text-sm">
+            <div class="mb-1 flex items-center justify-between gap-2">
+              <span class="text-[var(--text-muted)]">
+                {t('narrowBreakpoint')}
+                <span class="ml-1">{narrowBreakpointLocal}px</span>
+              </span>
+              {#if settings.narrowBreakpoint !== DEFAULT_SETTINGS.narrowBreakpoint}
+                <button
+                  type="button"
+                  class="rounded px-2 py-0.5 text-xs"
+                  style:border="1px solid var(--dial-border)"
+                  style:color="var(--accent)"
+                  onclick={resetNarrowBreakpoint}
+                >
+                  {t('useDefault')}
+                </button>
+              {/if}
+            </div>
+            <input
+              type="range"
+              min="320"
+              max="1600"
+              step="20"
+              bind:value={narrowBreakpointLocal}
+              class="w-full"
+              onpointerdown={beginSliderDrag}
+              onpointerup={flushNarrowBreakpoint}
+              onpointercancel={flushNarrowBreakpoint}
+              onchange={flushNarrowBreakpoint}
+              oninput={() =>
+                updateNarrowBreakpoint(Number(narrowBreakpointLocal), false)
               }
             />
           </div>

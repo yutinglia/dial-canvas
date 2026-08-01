@@ -22,6 +22,7 @@
     defaultWeatherWidgetSize,
     findFirstFreeSlot,
     findNearestFreeSlot,
+    shiftRectForCanvasResize,
     type Rect,
     type Size,
   } from '../../lib/layout';
@@ -91,6 +92,7 @@
   let widgetEditorOpen = $state(false);
   let editingWidget = $state<Widget | null>(null);
   let canvasSize = $state<Size>({ width: 1200, height: 800 });
+  let canvasMeasured = $state(false);
   let toastMessage = $state('');
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
   let showEditHint = $state(false);
@@ -574,6 +576,60 @@
     void persist(withActiveWidgets(store, widgets), opts?.immediate ?? true);
   }
 
+  function onCanvasSizeChange(size: Size) {
+    if (!store) {
+      canvasSize = size;
+      return;
+    }
+    if (
+      size.width === canvasSize.width &&
+      size.height === canvasSize.height
+    ) {
+      return;
+    }
+
+    const prev = canvasSize;
+    canvasSize = size;
+
+    // First measure: adopt size without shifting stored positions.
+    if (!canvasMeasured) {
+      canvasMeasured = true;
+      return;
+    }
+
+    const pages = store.pages.map((page) => ({
+      ...page,
+      dials: page.dials.map((dial) => ({
+        ...dial,
+        ...shiftRectForCanvasResize(
+          {
+            x: dial.x,
+            y: dial.y,
+            width: dial.width,
+            height: dial.height,
+          },
+          prev,
+          size,
+        ),
+      })),
+      widgets: page.widgets.map((widget) => ({
+        ...widget,
+        ...shiftRectForCanvasResize(
+          {
+            x: widget.x,
+            y: widget.y,
+            width: widget.width,
+            height: widget.height,
+          },
+          prev,
+          size,
+        ),
+      })),
+    }));
+
+    void persist({ ...store, pages }, false);
+  }
+
   function onSettingsChange(
     partial: Partial<Settings>,
     opts?: { immediate?: boolean },
@@ -973,6 +1029,8 @@
     fontSize?: number;
     backgroundColor?: string;
     backgroundOpacity?: number;
+    showWhenNarrow?: boolean;
+    narrowOrder?: number;
   }) {
     if (!store) return;
 
@@ -992,6 +1050,7 @@
           title: values.title,
           url,
           faviconUrl,
+          showWhenNarrow: values.showWhenNarrow ?? false,
         };
         if (values.iconSize !== undefined) next.iconSize = values.iconSize;
         else delete next.iconSize;
@@ -1007,6 +1066,8 @@
         } else {
           delete next.backgroundOpacity;
         }
+        if (values.narrowOrder !== undefined) next.narrowOrder = values.narrowOrder;
+        else delete next.narrowOrder;
         return next;
       });
       await persist(withActiveDials(store, nextDials), true);
@@ -1031,6 +1092,7 @@
         title: values.title,
         url,
         faviconUrl,
+        showWhenNarrow: values.showWhenNarrow ?? false,
         ...(values.iconSize !== undefined
           ? { iconSize: values.iconSize }
           : {}),
@@ -1042,6 +1104,9 @@
           : {}),
         ...(values.backgroundOpacity !== undefined
           ? { backgroundOpacity: values.backgroundOpacity }
+          : {}),
+        ...(values.narrowOrder !== undefined
+          ? { narrowOrder: values.narrowOrder }
           : {}),
         ...slot,
       };
@@ -1278,7 +1343,7 @@
         onPatchWidget={patchWidget}
         onEditDial={openEditDial}
         onEditWidget={openEditWidget}
-        onCanvasSizeChange={(size) => (canvasSize = size)}
+        {onCanvasSizeChange}
         onContextMenu={onDialContextMenu}
         onWidgetContextMenu={onWidgetContextMenu}
         onCanvasContextMenu={onCanvasContextMenu}

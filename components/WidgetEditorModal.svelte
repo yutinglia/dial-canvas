@@ -52,6 +52,8 @@
   let iconSizeOverride = $state<number | null>(null);
   let backgroundColorOverride = $state<string | null>(null);
   let backgroundOpacityOverride = $state<number | null>(null);
+  let showWhenNarrow = $state(false);
+  let narrowOrderText = $state('');
   let cityQuery = $state('');
   let cityResults = $state<GeocodeResult[]>([]);
   let searching = $state(false);
@@ -119,6 +121,9 @@
     backgroundColorOverride = widget.backgroundColor ?? null;
     backgroundOpacityOverride = widget.backgroundOpacity ?? null;
     fontSizeOverride = widget.fontSize ?? null;
+    showWhenNarrow = widget.showWhenNarrow ?? false;
+    narrowOrderText =
+      widget.narrowOrder !== undefined ? String(widget.narrowOrder) : '';
     error = '';
     cityQuery = '';
     cityResults = [];
@@ -214,6 +219,19 @@
     } else {
       delete next.backgroundColor;
       delete next.backgroundOpacity;
+    }
+    next.showWhenNarrow = showWhenNarrow;
+    if (showWhenNarrow) {
+      const trimmed = narrowOrderText.trim();
+      if (trimmed) {
+        const n = Number(trimmed);
+        if (Number.isInteger(n)) next.narrowOrder = n;
+        else delete next.narrowOrder;
+      } else {
+        delete next.narrowOrder;
+      }
+    } else {
+      delete next.narrowOrder;
     }
     return next;
   }
@@ -656,6 +674,27 @@
             </label>
           </div>
         </div>
+
+        <label class="flex items-center gap-2 text-sm text-[var(--dial-title)]">
+          <input type="checkbox" bind:checked={showWhenNarrow} />
+          {t('showWhenNarrow')}
+        </label>
+
+        {#if showWhenNarrow}
+          <label class="block text-sm">
+            <span class="mb-1 block text-[var(--text-muted)]"
+              >{t('narrowOrder')}</span
+            >
+            <input
+              class="w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:border-[var(--accent)]"
+              style:border-color="var(--dial-border)"
+              type="text"
+              inputmode="numeric"
+              bind:value={narrowOrderText}
+              placeholder={t('narrowOrderHint')}
+            />
+          </label>
+        {/if}
 
         {#if error}
           <p class="text-sm text-[var(--danger)]">{error}</p>

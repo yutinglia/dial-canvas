@@ -10,6 +10,7 @@ import {
   firstLatticeAtOrAbove,
   latticeRange,
   resolveDrop,
+  shiftRectForCanvasResize,
 } from './placement';
 import type { Rect } from './types';
 
@@ -48,6 +49,43 @@ describe('clampRect', () => {
     expect(clampRect(rect(10, 10, 0, -5), canvas)).toEqual(
       rect(10, 10, 1, 1),
     );
+  });
+});
+
+describe('shiftRectForCanvasResize', () => {
+  const prev = { width: 1200, height: 800 };
+  const next = { width: 1400, height: 900 };
+
+  it('is a no-op when canvas size is unchanged', () => {
+    expect(
+      shiftRectForCanvasResize(rect(100, 80, 64, 64), prev, prev),
+    ).toEqual(rect(100, 80, 64, 64));
+  });
+
+  it('keeps a centered rect centered after grow', () => {
+    // 64×64 centered on 1200×800 mid (600, 400) → top-left (568, 368)
+    const centered = rect(568, 368, 64, 64);
+    // After grow mid is (700, 450); expect shift (+100, +50)
+    expect(shiftRectForCanvasResize(centered, prev, next)).toEqual(
+      rect(668, 418, 64, 64),
+    );
+  });
+
+  it('preserves offset from canvas mid (lattice relative)', () => {
+    // 20px grid slot one step left of mid: x = 600 - 20 = 580
+    const slot = rect(580, 400, 80, 80);
+    const shifted = shiftRectForCanvasResize(slot, prev, next);
+    expect(shifted.x - next.width / 2).toBe(slot.x - prev.width / 2);
+    expect(shifted.y - next.height / 2).toBe(slot.y - prev.height / 2);
+    expect(shifted).toEqual(rect(680, 450, 80, 80));
+  });
+
+  it('clamps into the smaller canvas when shrinking', () => {
+    const small = { width: 200, height: 160 };
+    // Near bottom-right of large canvas — would leave bounds after shrink
+    expect(
+      shiftRectForCanvasResize(rect(1100, 700, 80, 80), prev, small),
+    ).toEqual(rect(120, 80, 80, 80));
   });
 });
 

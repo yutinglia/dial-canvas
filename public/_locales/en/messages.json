@@ -551,6 +551,18 @@
   "canvasMinHeight": {
     "message": "Min canvas height"
   },
+  "narrowBreakpoint": {
+    "message": "Narrow layout below"
+  },
+  "showWhenNarrow": {
+    "message": "Show when window is narrow"
+  },
+  "narrowOrder": {
+    "message": "Narrow stack order"
+  },
+  "narrowOrderHint": {
+    "message": "Lower first; blank uses position"
+  },
   "snapThreshold": {
     "message": "Snap threshold"
   },
