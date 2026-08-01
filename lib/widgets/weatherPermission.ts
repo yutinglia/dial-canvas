@@ -11,6 +11,11 @@ type DataCollectionQuery = {
   data_collection: string[];
 };
 
+function isUserGestureError(error: unknown): boolean {
+  const msg = String(error).toLowerCase();
+  return msg.includes('user input') || msg.includes('user gesture');
+}
+
 /**
  * Whether Firefox exposes built-in data-collection consent.
  * Absent key ⇒ treat location data as allowed (Chrome / older Firefox).
@@ -39,17 +44,17 @@ export async function hasLocationDataPermission(): Promise<boolean> {
 
 /**
  * Prompt for locationInfo data collection. Must run from a user gesture.
- * No-ops as granted when the browser lacks data_collection support.
+ * Call request() immediately — Firefox voids the gesture across awaits
+ * (getAll / contains) before this API. Denial resolves false; unsupported
+ * data_collection throws and is treated as allowed (except gesture errors).
  */
 export async function requestLocationDataPermission(): Promise<boolean> {
   try {
-    if (!(await supportsDataCollectionPermissions())) return true;
-    const already = await hasLocationDataPermission();
-    if (already) return true;
     return await browser.permissions.request(
       { data_collection: [LOCATION_DATA_PERMISSION] } as DataCollectionQuery as never,
     );
-  } catch {
-    return false;
+  } catch (error) {
+    if (isUserGestureError(error)) return false;
+    return true;
   }
 }

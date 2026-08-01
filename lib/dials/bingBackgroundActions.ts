@@ -9,10 +9,7 @@ import {
   applyBackground,
   isBingCacheFresh,
 } from './canvasBackground';
-import {
-  hasFetchHostPermission,
-  requestFetchHostPermission,
-} from './hostPermission';
+import { requestFetchHostPermission } from './hostPermission';
 import type { Store } from '../schemas/store';
 
 export type BingActionDeps = {
@@ -33,10 +30,8 @@ function isHostPermissionError(error: string | undefined): boolean {
 export async function ensureHostPermissionForBing(
   deps: Pick<BingActionDeps, 'showToast' | 't'>,
 ): Promise<boolean> {
-  let allowed = await hasFetchHostPermission();
-  if (!allowed) {
-    allowed = await requestFetchHostPermission();
-  }
+  // request() only — no contains() first (Firefox drops the user gesture).
+  const allowed = await requestFetchHostPermission();
   if (!allowed) {
     deps.showToast(deps.t('bingHostPermission'));
     return false;

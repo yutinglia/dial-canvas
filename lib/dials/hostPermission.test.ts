@@ -31,32 +31,26 @@ describe('hasFetchHostPermission', () => {
 });
 
 describe('requestFetchHostPermission', () => {
-  it('skips the prompt when already granted', async () => {
-    vi.spyOn(browser.permissions, 'contains').mockImplementation(
-      async () => true,
-    );
-    const request = vi.spyOn(browser.permissions, 'request');
-    await expect(requestFetchHostPermission()).resolves.toBe(true);
-    expect(request).not.toHaveBeenCalled();
-  });
-
-  it('requests host origins when missing', async () => {
-    vi.spyOn(browser.permissions, 'contains').mockImplementation(
-      async () => false,
-    );
+  it('calls request immediately without contains', async () => {
+    const contains = vi.spyOn(browser.permissions, 'contains');
     const request = vi
       .spyOn(browser.permissions, 'request')
       .mockImplementation(async () => true);
     await expect(requestFetchHostPermission()).resolves.toBe(true);
+    expect(contains).not.toHaveBeenCalled();
     expect(request).toHaveBeenCalledWith({
       origins: [...FETCH_HOST_ORIGINS],
     });
   });
 
-  it('returns false when request throws', async () => {
-    vi.spyOn(browser.permissions, 'contains').mockImplementation(
+  it('returns the request result when denied', async () => {
+    vi.spyOn(browser.permissions, 'request').mockImplementation(
       async () => false,
     );
+    await expect(requestFetchHostPermission()).resolves.toBe(false);
+  });
+
+  it('returns false when request throws', async () => {
     vi.spyOn(browser.permissions, 'request').mockRejectedValue(
       new Error('blocked'),
     );
