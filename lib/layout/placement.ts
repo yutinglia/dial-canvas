@@ -129,6 +129,70 @@ export function resolveDrop(
   return next;
 }
 
+/**
+ * Commit a multi-item translate: snap/align the primary rect, apply the same
+ * delta to every origin, clamp each, then all-or-nothing overlap revert.
+ */
+export function resolveGroupDrop(
+  primaryId: string,
+  proposedPrimary: Rect,
+  origins: Record<string, Rect>,
+  others: Rect[],
+  settings: DropSettings,
+  canvasSize: Size,
+): Record<string, Rect> {
+  const primaryOrigin = origins[primaryId];
+  if (!primaryOrigin) {
+    const copy: Record<string, Rect> = {};
+    for (const [id, origin] of Object.entries(origins)) {
+      copy[id] = { ...origin };
+    }
+    return copy;
+  }
+
+  let nextPrimary = { ...proposedPrimary };
+  if (settings.snapEnabled) {
+    nextPrimary = snapRect(
+      nextPrimary,
+      settings.gridSize,
+      settings.snapThreshold,
+      canvasOrigin(canvasSize),
+    );
+    const threshold = settings.snapThreshold;
+    if (threshold !== undefined && Number.isFinite(threshold)) {
+      nextPrimary = alignSnapRect(
+        nextPrimary,
+        { canvas: canvasSize, others },
+        threshold,
+      );
+    }
+  }
+  nextPrimary = clampRect(nextPrimary, canvasSize);
+
+  const dx = nextPrimary.x - primaryOrigin.x;
+  const dy = nextPrimary.y - primaryOrigin.y;
+
+  const translated: Record<string, Rect> = {};
+  for (const [id, origin] of Object.entries(origins)) {
+    translated[id] = clampRect(
+      { ...origin, x: origin.x + dx, y: origin.y + dy },
+      canvasSize,
+    );
+  }
+
+  for (const rect of Object.values(translated)) {
+    if (hasOverlap(rect, others)) {
+      const reverted: Record<string, Rect> = {};
+      for (const [id, origin] of Object.entries(origins)) {
+        reverted[id] = { ...origin };
+      }
+      return reverted;
+    }
+  }
+
+  return translated;
+}
+
 /** Default dial size in grid cells (7×6). */
 export function defaultDialSize(gridSize: number): {
   width: number;

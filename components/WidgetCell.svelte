@@ -146,6 +146,7 @@
   <div
     class={shellClass}
     class:ring-2={selected}
+    data-canvas-item={widget.id}
     style:left="{widget.x}px"
     style:top="{widget.y}px"
     style:width="{widget.width}px"

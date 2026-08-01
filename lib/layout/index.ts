@@ -14,6 +14,7 @@ export {
   firstLatticeAtOrAbove,
   latticeRange,
   resolveDrop,
+  resolveGroupDrop,
   defaultDialSize,
   defaultClockWidgetSize,
   defaultWeatherWidgetSize,

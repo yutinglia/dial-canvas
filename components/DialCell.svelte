@@ -169,6 +169,7 @@
     class={shellClass}
     class:ring-2={selected}
     class:hover:scale-[1.02]={false}
+    data-canvas-item={dial.id}
     style:left="{dial.x}px"
     style:top="{dial.y}px"
     style:width="{dial.width}px"

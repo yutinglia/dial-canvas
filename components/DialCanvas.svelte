@@ -11,8 +11,10 @@
     alignSnapRect,
     canvasOrigin,
     clampRect,
+    intersects,
     layoutNarrowStack,
     resolveDrop,
+    resolveGroupDrop,
     snapRect,
     type AlignGuides as AlignGuideLines,
     type Rect,
@@ -79,7 +81,7 @@
   let canvasEl: HTMLDivElement | undefined = $state();
   let canvasSize = $state<Size>({ width: 1200, height: 800 });
   let viewportSize = $state<Size>({ width: 1200, height: 800 });
-  let selectedId = $state<string | null>(null);
+  let selectedIds = $state<string[]>([]);
   let previewById = $state<Record<string, Rect>>({});
 
   type Interaction =
@@ -90,6 +92,7 @@
         startX: number;
         startY: number;
         origin: Rect;
+        origins: Record<string, Rect>;
         pointerId: number;
         moved: boolean;
       }
@@ -101,6 +104,17 @@
         startX: number;
         startY: number;
         origin: Rect;
+        pointerId: number;
+        moved: boolean;
+      }
+    | {
+        kind: 'marquee';
+        startClientX: number;
+        startClientY: number;
+        startX: number;
+        startY: number;
+        currentX: number;
+        currentY: number;
         pointerId: number;
         moved: boolean;
       };
@@ -151,6 +165,23 @@
   const visibleWidgets = $derived(
     isNarrow ? widgets.filter((w) => w.showWhenNarrow) : widgets,
   );
+
+  const marqueeRect = $derived.by((): Rect | null => {
+    const active = interaction;
+    if (!active || active.kind !== 'marquee' || !active.moved) return null;
+    return {
+      x: Math.min(active.startX, active.currentX),
+      y: Math.min(active.startY, active.currentY),
+      width: Math.abs(active.currentX - active.startX),
+      height: Math.abs(active.currentY - active.startY),
+    };
+  });
+
+  const movingIds = $derived.by((): Set<string> => {
+    const active = interaction;
+    if (!active || active.kind !== 'move') return new Set();
+    return new Set(Object.keys(active.origins));
+  });
 
   function matchesQuery(dial: Dial): boolean {
     if (!hasQuery) return true;
@@ -216,6 +247,16 @@
     return () => observer.disconnect();
   });
 
+  $effect(() => {
+    if (editMode) return;
+    selectedIds = [];
+    previewById = {};
+    if (interaction) {
+      interaction = null;
+      detachWindowListeners();
+    }
+  });
+
   function itemRect(item: { x: number; y: number; width: number; height: number }): Rect {
     return {
       x: item.x,
@@ -252,12 +293,16 @@
   const interactionActive = $derived(Boolean(interaction?.moved));
   const activeGuideLines = $derived.by((): AlignGuideLines | null => {
     const active = interaction;
-    if (!active?.moved || !settings.snapEnabled) return null;
+    if (!active?.moved || active.kind === 'marquee' || !settings.snapEnabled) {
+      return null;
+    }
     const preview = previewById[active.id];
     if (!preview) return null;
+    const exclude =
+      active.kind === 'move' ? Object.keys(active.origins) : [active.id];
     return activeAlignGuides(
       preview,
-      { canvas: canvasSize, others: allOtherRects(active.id) },
+      { canvas: canvasSize, others: allOtherRects(exclude) },
       settings.snapThreshold,
     );
   });
@@ -302,17 +347,69 @@
     attachWindowListeners();
   }
 
+  function clientToCanvas(clientX: number, clientY: number): { x: number; y: number } {
+    if (!canvasEl) return { x: 0, y: 0 };
+    const bounds = canvasEl.getBoundingClientRect();
+    return { x: clientX - bounds.left, y: clientY - bounds.top };
+  }
+
+  function lookupItemRect(id: string): Rect | null {
+    const dial = dials.find((d) => d.id === id);
+    if (dial) return itemRect(dial);
+    const widget = widgets.find((w) => w.id === id);
+    if (widget) return itemRect(widget);
+    return null;
+  }
+
+  function buildMoveOrigins(primaryId: string, primaryRect: Rect): Record<string, Rect> {
+    const ids = selectedIds.includes(primaryId) ? selectedIds : [primaryId];
+    const origins: Record<string, Rect> = {};
+    for (const id of ids) {
+      const rect = id === primaryId ? primaryRect : lookupItemRect(id);
+      if (rect) origins[id] = rect;
+    }
+    origins[primaryId] = primaryRect;
+    return origins;
+  }
+
+  function applyRectsToStore(
+    rects: Record<string, Rect>,
+    opts: { immediate: boolean },
+  ) {
+    let dialsTouched = false;
+    let widgetsTouched = false;
+    const nextDials = dials.map((d) => {
+      const rect = rects[d.id];
+      if (!rect) return d;
+      dialsTouched = true;
+      return { ...d, ...rect };
+    });
+    const nextWidgets = widgets.map((w) => {
+      const rect = rects[w.id];
+      if (!rect) return w;
+      widgetsTouched = true;
+      return { ...w, ...rect };
+    });
+    if (dialsTouched) onDialsChange(nextDials, opts);
+    if (widgetsTouched) onWidgetsChange?.(nextWidgets, opts);
+  }
+
   function onDialMoveStart(dial: Dial, event: PointerEvent) {
     if (!editMode) return;
     event.preventDefault();
-    selectedId = dial.id;
+    const origin = itemRect(dial);
+    if (!selectedIds.includes(dial.id)) {
+      selectedIds = [dial.id];
+    }
+    const origins = buildMoveOrigins(dial.id, origin);
     beginInteraction({
       kind: 'move',
       id: dial.id,
       itemKind: 'dial',
       startX: event.clientX,
       startY: event.clientY,
-      origin: itemRect(dial),
+      origin,
+      origins,
       pointerId: event.pointerId,
       moved: false,
     });
@@ -325,7 +422,7 @@
   ) {
     if (!editMode) return;
     event.preventDefault();
-    selectedId = dial.id;
+    selectedIds = [dial.id];
     beginInteraction({
       kind: 'resize',
       id: dial.id,
@@ -342,14 +439,19 @@
   function onWidgetMoveStart(widget: Widget, event: PointerEvent) {
     if (!editMode) return;
     event.preventDefault();
-    selectedId = widget.id;
+    const origin = itemRect(widget);
+    if (!selectedIds.includes(widget.id)) {
+      selectedIds = [widget.id];
+    }
+    const origins = buildMoveOrigins(widget.id, origin);
     beginInteraction({
       kind: 'move',
       id: widget.id,
       itemKind: 'widget',
       startX: event.clientX,
       startY: event.clientY,
-      origin: itemRect(widget),
+      origin,
+      origins,
       pointerId: event.pointerId,
       moved: false,
     });
@@ -362,7 +464,7 @@
   ) {
     if (!editMode) return;
     event.preventDefault();
-    selectedId = widget.id;
+    selectedIds = [widget.id];
     beginInteraction({
       kind: 'resize',
       id: widget.id,
@@ -376,33 +478,104 @@
     });
   }
 
-  function allOtherRects(excludeId: string): Rect[] {
+  function allOtherRects(excludeIds: string | string[]): Rect[] {
+    const exclude = new Set(
+      Array.isArray(excludeIds) ? excludeIds : [excludeIds],
+    );
     return [
-      ...dials.filter((d) => d.id !== excludeId).map(itemRect),
-      ...widgets.filter((w) => w.id !== excludeId).map(itemRect),
+      ...dials.filter((d) => !exclude.has(d.id)).map(itemRect),
+      ...widgets.filter((w) => !exclude.has(w.id)).map(itemRect),
     ];
+  }
+
+  function isEmptyCanvasTarget(el: EventTarget | null): boolean {
+    if (!(el instanceof HTMLElement) || !canvasEl) return false;
+    if (!canvasEl.contains(el)) return false;
+    if (el.closest('[data-canvas-item], button, a, input, textarea, select')) {
+      return false;
+    }
+    return true;
+  }
+
+  function onCanvasPointerDown(event: PointerEvent) {
+    if (!editMode || event.button !== 0) return;
+    if (!isEmptyCanvasTarget(event.target)) return;
+    event.preventDefault();
+    const point = clientToCanvas(event.clientX, event.clientY);
+    beginInteraction({
+      kind: 'marquee',
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: point.x,
+      startY: point.y,
+      currentX: point.x,
+      currentY: point.y,
+      pointerId: event.pointerId,
+      moved: false,
+    });
+  }
+
+  function selectIntersecting(marquee: Rect) {
+    const next: string[] = [];
+    for (const dial of dials) {
+      if (intersects(marquee, itemRect(dial))) next.push(dial.id);
+    }
+    for (const widget of widgets) {
+      if (intersects(marquee, itemRect(widget))) next.push(widget.id);
+    }
+    selectedIds = next;
   }
 
   function onPointerMove(event: PointerEvent) {
     const active = interaction;
     if (!active || event.pointerId !== active.pointerId) return;
 
+    if (active.kind === 'marquee') {
+      const dx = event.clientX - active.startClientX;
+      const dy = event.clientY - active.startClientY;
+      if (!active.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      const point = clientToCanvas(event.clientX, event.clientY);
+      interaction = {
+        ...active,
+        moved: true,
+        currentX: point.x,
+        currentY: point.y,
+      };
+      return;
+    }
+
     const dx = event.clientX - active.startX;
     const dy = event.clientY - active.startY;
     if (!active.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
     interaction = { ...active, moved: true };
 
-    let proposed: Rect;
     if (active.kind === 'move') {
-      proposed = {
+      const exclude = Object.keys(active.origins);
+      const proposedPrimary = {
         ...active.origin,
         x: active.origin.x + dx,
         y: active.origin.y + dy,
       };
-    } else {
-      proposed = applyResize(active.origin, active.handle, dx, dy);
+      const candidatePrimary = liveCandidate(
+        proposedPrimary,
+        allOtherRects(exclude),
+      );
+      const deltaX = candidatePrimary.x - active.origin.x;
+      const deltaY = candidatePrimary.y - active.origin.y;
+      const nextPreview: Record<string, Rect> = {};
+      for (const [id, origin] of Object.entries(active.origins)) {
+        nextPreview[id] = {
+          ...origin,
+          x: origin.x + deltaX,
+          y: origin.y + deltaY,
+        };
+      }
+      previewById = { ...previewById, ...nextPreview };
+      applyRectsToStore(nextPreview, { immediate: false });
+      return;
     }
 
+    const proposed = applyResize(active.origin, active.handle, dx, dy);
     const candidate = liveCandidate(proposed, allOtherRects(active.id));
     previewById = { ...previewById, [active.id]: candidate };
 
@@ -419,9 +592,57 @@
     }
   }
 
+  function clearPreviewIds(ids: string[]) {
+    const next = { ...previewById };
+    for (const id of ids) delete next[id];
+    previewById = next;
+  }
+
   function onPointerUp(event: PointerEvent) {
     const active = interaction;
     if (!active || event.pointerId !== active.pointerId) return;
+
+    if (active.kind === 'marquee') {
+      interaction = null;
+      detachWindowListeners();
+      if (!active.moved) {
+        selectedIds = [];
+        return;
+      }
+      selectIntersecting({
+        x: Math.min(active.startX, active.currentX),
+        y: Math.min(active.startY, active.currentY),
+        width: Math.abs(active.currentX - active.startX),
+        height: Math.abs(active.currentY - active.startY),
+      });
+      return;
+    }
+
+    if (active.kind === 'move') {
+      const exclude = Object.keys(active.origins);
+      const proposed = previewById[active.id] ?? {
+        ...active.origin,
+        x: active.origin.x,
+        y: active.origin.y,
+      };
+      const committed = resolveGroupDrop(
+        active.id,
+        proposed,
+        active.origins,
+        allOtherRects(exclude),
+        {
+          gridSize: settings.gridSize,
+          snapEnabled: settings.snapEnabled,
+          snapThreshold: settings.snapThreshold,
+        },
+        canvasSize,
+      );
+      clearPreviewIds(exclude);
+      interaction = null;
+      detachWindowListeners();
+      applyRectsToStore(committed, { immediate: true });
+      return;
+    }
 
     const proposed = previewById[active.id] ?? active.origin;
     const others = allOtherRects(active.id);
@@ -438,8 +659,7 @@
       canvasSize,
     );
 
-    const { [active.id]: _, ...rest } = previewById;
-    previewById = rest;
+    clearPreviewIds([active.id]);
     interaction = null;
     detachWindowListeners();
 
@@ -485,8 +705,13 @@
     style:height={isNarrow ? undefined : `${canvasSize.height}px`}
     style:left={isNarrow ? undefined : `${canvasOffsetX}px`}
     style:top={isNarrow ? undefined : `${canvasOffsetY}px`}
-    style:cursor={interaction?.kind === 'move' ? 'grabbing' : undefined}
+    style:cursor={interaction?.kind === 'move'
+      ? 'grabbing'
+      : interaction?.kind === 'marquee'
+        ? 'crosshair'
+        : undefined}
     role="presentation"
+    onpointerdown={onCanvasPointerDown}
     oncontextmenu={handleCanvasContextMenu}
   >
     <GridOverlay
@@ -548,9 +773,9 @@
       <DialCell
         dial={{ ...dial, ...rect }}
         {editMode}
-        selected={selectedId === dial.id}
+        selected={selectedIds.includes(dial.id)}
         preview={Boolean(previewById[dial.id])}
-        dragging={interaction?.kind === 'move' && interaction.id === dial.id}
+        dragging={movingIds.has(dial.id)}
         dimmed={hasQuery && !matchesQuery(dial)}
         iconSize={dial.iconSize ?? settings.iconSize}
         fontSize={dial.fontSize ?? settings.fontSize}
@@ -566,9 +791,9 @@
       <WidgetCell
         widget={{ ...widget, ...rect }}
         {editMode}
-        selected={selectedId === widget.id}
+        selected={selectedIds.includes(widget.id)}
         preview={Boolean(previewById[widget.id])}
-        dragging={interaction?.kind === 'move' && interaction.id === widget.id}
+        dragging={movingIds.has(widget.id)}
         dimmed={hasQuery}
         {background}
         onEdit={(w) => onEditWidget?.(w)}
@@ -578,5 +803,16 @@
         onContextMenu={(w, e) => onWidgetContextMenu?.(w, e)}
       />
     {/each}
+
+    {#if marqueeRect}
+      <div
+        class="pointer-events-none absolute z-20 border border-[var(--accent)] bg-[rgba(107,143,113,0.18)]"
+        style:left="{marqueeRect.x}px"
+        style:top="{marqueeRect.y}px"
+        style:width="{marqueeRect.width}px"
+        style:height="{marqueeRect.height}px"
+        aria-hidden="true"
+      ></div>
+    {/if}
   </div>
 </div>

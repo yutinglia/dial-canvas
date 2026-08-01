@@ -10,6 +10,7 @@ import {
   firstLatticeAtOrAbove,
   latticeRange,
   resolveDrop,
+  resolveGroupDrop,
   shiftRectForCanvasResize,
 } from './placement';
 import type { Rect } from './types';
@@ -194,6 +195,68 @@ describe('resolveDrop', () => {
         canvas,
       ),
     ).toEqual(rect(0, 0, 64, 64));
+  });
+});
+
+describe('resolveGroupDrop', () => {
+  const settings = { gridSize: 16, snapEnabled: true };
+
+  it('translates every origin by the primary snap delta', () => {
+    const origins = {
+      a: rect(16, 16, 64, 64),
+      b: rect(96, 16, 64, 64),
+    };
+    expect(
+      resolveGroupDrop(
+        'a',
+        rect(18, 20, 64, 64),
+        origins,
+        [],
+        settings,
+        canvas,
+      ),
+    ).toEqual({
+      a: rect(16, 24, 64, 64),
+      b: rect(96, 24, 64, 64),
+    });
+  });
+
+  it('reverts all origins when any translated rect overlaps others', () => {
+    const origins = {
+      a: rect(0, 0, 64, 64),
+      b: rect(80, 0, 64, 64),
+    };
+    const blocker = rect(16, 24, 64, 64);
+    expect(
+      resolveGroupDrop(
+        'a',
+        rect(18, 20, 64, 64),
+        origins,
+        [blocker],
+        settings,
+        canvas,
+      ),
+    ).toEqual(origins);
+  });
+
+  it('clamps siblings that would leave the canvas', () => {
+    const origins = {
+      a: rect(200, 0, 64, 64),
+      b: rect(280, 0, 64, 64),
+    };
+    expect(
+      resolveGroupDrop(
+        'a',
+        rect(240, 0, 64, 64),
+        origins,
+        [],
+        { gridSize: 16, snapEnabled: false },
+        canvas,
+      ),
+    ).toEqual({
+      a: rect(240, 0, 64, 64),
+      b: rect(256, 0, 64, 64),
+    });
   });
 });
 
