@@ -4,6 +4,10 @@ A Firefox-first browser extension that replaces the new tab page with a free-for
 
 Also targets Chrome / Edge via WXT/MV3 (best-effort; Firefox is the primary test browser).
 
+![Stylized Dial Canvas new-tab layout](docs/media/dial-canvas-overview.svg)
+
+*A stylized view of the free-form canvas, based on the current dials and widgets interface.*
+
 ## Features
 
 - Free-form dials with absolute `x/y/w/h` placement
