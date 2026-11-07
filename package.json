@@ -31,7 +31,7 @@
   "devDependencies": {
     "@emnapi/core": "^1.11.3",
     "@emnapi/runtime": "^1.11.3",
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.4",
     "@tsconfig/svelte": "^5.0.8",
     "@vitest/coverage-v8": "^4.1.10",
     "@wxt-dev/module-svelte": "^2.0.5",
